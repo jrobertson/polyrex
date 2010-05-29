@@ -138,6 +138,7 @@ end
         field.text = value
         summary.add field
       end
+      summary.add Element.new('format_mask').add_text(@format_masks[i])
       
       new_records = Element.new('records')
 
@@ -154,5 +155,9 @@ end
   def to_xml()
     @doc.to_s
   end
+
+  def save(filepath)    
+    File.open(filepath,'w'){|f| @doc.write f}    
+  end  
 
 end

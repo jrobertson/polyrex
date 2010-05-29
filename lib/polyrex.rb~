@@ -1,3 +1,5 @@
+#/usr/bin/ruby
+
 # file: polyrex.rb
 
 require 'polyrex-schema'
@@ -136,6 +138,7 @@ end
         field.text = value
         summary.add field
       end
+      summary.add Element.new('format_mask').add_text(@format_masks[i])
       
       new_records = Element.new('records')
 
@@ -152,5 +155,11 @@ end
   def to_xml()
     @doc.to_s
   end
+  
+  #Save the document to a local file.  
+  
+  def save(filepath)    
+    File.open(filepath,'w'){|f| @doc.write f}    
+  end  
 
 end
