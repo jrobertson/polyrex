@@ -155,9 +155,7 @@ end
   def to_xml()
     @doc.to_s
   end
-  
-  #Save the document to a local file.  
-  
+
   def save(filepath)    
     File.open(filepath,'w'){|f| @doc.write f}    
   end  

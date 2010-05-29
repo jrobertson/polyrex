@@ -151,6 +151,10 @@ end
   end
   
   # -- end of full text edit methods
+  
+  def record()
+    @parent_node
+  end
 
   def to_xml()
     @doc.to_s
