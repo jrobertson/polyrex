@@ -3,108 +3,49 @@
 # file: polyrex.rb
 
 require 'polyrex-schema'
-require 'backtrack-xpath'
 require 'line-tree'
+require 'polyrex-objects'
+require 'polyrex-createobject'
 require 'rexml/document'
 
 class Polyrex
   include REXML
 
-  def initialize(schema)
-    
-    # -- required for the parsing feature
-    doc = Document.new(PolyrexSchema.new(schema).to_s)
-    @format_masks = XPath.match(doc.root, '//format_mask/text()').map &:to_s
-    schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
-    @recordx = schema_rpath.split('/')
-    
-    if @format_masks.length == @recordx.length then
-      root_format_mask = @format_masks.shift 
-      field_names = root_format_mask.to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
-      summary = field_names.map {|x| "<%s/>" % x}.join
-    end
-    #----
-    
-    @schema = schema
-
-    @id = '0'
-    a = @schema.split('/')        
-
-    @rpaths = (a.length).times.inject({}) {|r| r.merge ({a.join('/').gsub(/\[[^\]]+\]/,'') => a.pop}) }
-
-    names = @rpaths.to_a[0..-2].map {|k,v| [v[/[^\[]+/], k]}
-    attach_create_handlers(names)
-
-    @root_name = @recordx.shift
-
-    @doc = Document.new("<%s><summary>%s</summary><records/></%s>" % [@root_name, (summary || '') , @root_name])
-    @parent_node = XPath.first(@doc.root,'records')
-    
+  def initialize(location)
+    open(location)    
   end
 
-  def attach_create_handlers(names)
-    names[0..-2].each do |name, xpath|
-    self.instance_eval(
-%Q(
-  def create_#{name}(params) 
-    create_node(@parent_node, @rpaths['#{xpath}'], params)
-    self
+  def create()
+    @create.id = @id
+    @create.record = @parent_node
+    @create
   end
-))
-    end
 
-    name, xpath = names[-1]
-    self.instance_eval(
-%Q(
-def create_#{name}(params)
+  def delete(id=nil)
+    self.find_by_id(id) if id
+    @parent_node.parent.delete @parent_node
+  end
+
+  def record()
+    @parent_node
+  end
+
+  def to_xml()
+    @doc.to_s
+  end
+
+  def save(filepath)    
+    File.open(filepath,'w'){|f| @doc.write f}    
+  end  
   
-  @parent_node = XPath.first(@doc.root,'records')
-  record = create_node(@parent_node, @rpaths['#{xpath}'], params)
-  @parent_node = XPath.first(record.root, 'records')
-  self
-end
-))
-    
-  end
-  
-  # -- start of crud methods --
-  def valid_creation?()
-
-    xpath = BacktrackXPath.new(@parent_node).to_s.gsub('//','/')
-    path = xpath_to_rpath(xpath).sub(/\/?records$/,'')
-    rpath = @root_name + (path.length > 0 ? '/' + path : path)
-
-    schema_rpath = @schema.gsub(/\[[^\]]+\]/,'') 
-    local_path = (schema_rpath.split('/') - rpath.split('/')).join('/')
-    child_rpath = rpath + '/' + local_path
-
-    @rpaths.has_key? child_rpath
-  end
-
-  def create_node(parent_node, child_schema, params)
-    raise "create_node error: can't create record" unless valid_creation?
-    record = Document.new PolyrexSchema.new(child_schema).to_s
-    record.root.add_attribute('id', @id)
-    @id = (@id.to_i + 1).to_s
-
-    a = child_schema[/[^\[]+(?=\])/].split(',')
-    a.each do |field_name|  
-      field = XPath.first(record.root, 'summary/' + field_name)
-      field.text = params[field_name.to_sym]
-    end
-
-    parent_node.add record    
-    record
-  end
-
-  def xpath_to_rpath(xpath)
-    xpath.split('/').each_slice(2).map(&:last).join('/').gsub(/\[[^\]]+\]/,'')
-  end
+  # -- start of crud methods -- 
 
   def find_by_id(id)
     @parent_node = XPath.first(@doc.root, "//[@id='#{id}']")
     self
   end
+
+  alias id find_by_id
   # -- end of crud methods --
   
   # -- start of full text edit methods
@@ -116,7 +57,45 @@ end
     format_line!(@parent_node, LineTree.new(lines).to_a)
     self
   end
+  
+  def xpath(s)
+    XPath.first(@doc.root, s)
+  end
 
+  private
+
+  def polyrex_new(schema)
+    # -- required for the parsing feature
+    doc = Document.new(PolyrexSchema.new(schema).to_s)
+    @format_masks = XPath.match(doc.root, '//format_mask/text()').map &:to_s
+    schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
+    @recordx = schema_rpath.split('/')
+    
+    summary = ''
+    if @format_masks.length == @recordx.length then
+      root_format_mask = @format_masks.shift 
+      field_names = root_format_mask.to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
+      summary = field_names.map {|x| "<%s/>" % x}.join
+    end
+    
+    summary << "<schema>#{schema}</schema>"
+    #----
+    
+    @schema = schema
+    @id = '0'
+
+    root_name = @recordx.shift
+
+    ("<%s><summary>%s</summary><records/></%s>" % [root_name, (summary || '') , root_name])
+  end
+  
+  def load_handlers(schema)
+    @create = PolyrexCreateObject.new(schema)
+    @objects = PolyrexObjects.new(schema).to_h
+    attach_create_handlers(@objects.keys)
+    attach_edit_handlers(@objects)    
+  end
+  
   def format_line!(records, a, i=0)
     
     a.each do |x|    
@@ -151,17 +130,52 @@ end
   end
   
   # -- end of full text edit methods
+
+  def attach_create_handlers(names)
+    methodx = names.map do |name|
+%Q(
+  def create_#{name}(params) 
+    self.create.#{name.downcase}
+  end
+)
+    end
+
+    self.instance_eval(methodx.join("\n"))
+    
+  end
   
-  def record()
-    @parent_node
+  def attach_edit_handlers(objects)
+    objects.keys.each do |name|
+    self.instance_eval(
+%Q(
+  def #{name.downcase}()     
+    @objects['#{name}'].new(@parent_node)
   end
-
-  def to_xml()
-    @doc.to_s
+))
+    end
+    
   end
+  
+  def open(s)
+    if s[/\[/] then  # schema
+      buffer = polyrex_new s
+    elsif s[/^https?:\/\//] then  # url
+      buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
+    elsif s[/\</] # xml
+      buffer = s
+    else # local file
+      buffer = File.open(s,'r').read
+    end
 
-  def save(filepath)    
-    File.open(filepath,'w'){|f| @doc.write f}    
-  end  
+    puts '*' + buffer + '*'
+    @doc = Document.new buffer
+    @id = XPath.match(@doc.root, '//@id').map{|x| x.value.to_i}.max.to_i + 1
+    
+    schema = @doc.root.text('summary/schema')
+    #puts 'schema : ' + schema
+    load_handlers(schema)
+    @parent_node = XPath.first(@doc.root,'records')    
 
+  end    
+  
 end
