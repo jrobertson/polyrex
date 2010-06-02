@@ -15,8 +15,8 @@ class Polyrex
     open(location)    
   end
 
-  def create()
-    @create.id = @id
+  def create(id=nil)
+    @create.id = id || @id
     @create.record = @parent_node
     @create
   end

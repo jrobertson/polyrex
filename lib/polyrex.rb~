@@ -57,6 +57,10 @@ class Polyrex
     format_line!(@parent_node, LineTree.new(lines).to_a)
     self
   end
+  
+  def xpath(s)
+    XPath.first(@doc.root, s)
+  end
 
   private
 
