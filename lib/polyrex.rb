@@ -61,6 +61,12 @@ class Polyrex
   def xpath(s)
     XPath.first(@doc.root, s)
   end
+  
+  def records
+    XPath.each(@doc.root, "records/*") do |record|      
+      yield(@objects_a[0].new(record), @id)
+    end
+  end
 
   private
 
@@ -91,7 +97,9 @@ class Polyrex
   
   def load_handlers(schema)
     @create = PolyrexCreateObject.new(schema)
-    @objects = PolyrexObjects.new(schema).to_h
+    objects = PolyrexObjects.new(schema)    
+    @objects = objects.to_h
+    @objects_a = objects.to_a
     attach_create_handlers(@objects.keys)
     attach_edit_handlers(@objects)    
   end
@@ -101,11 +109,17 @@ class Polyrex
     a.each do |x|    
       
       tag_name = @recordx[i].to_s      
-      line = x.shift.join
+      line = x.shift
       
       @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
       t = @format_masks[i].to_s.gsub(/\[!(\w+)\]/, '(.*)').sub(/\[/,'\[').sub(/\]/,'\]')
-      field_values = line.match(/#{t}/).captures      
+      a = t.reverse.split(/(?=\)\*\.\()/).reverse.map &:reverse
+
+      patterns = tail_map(a)
+      pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
+      field_values = line.match(/#{pattern}/).captures      
+      field_values += [''] * (@field_names.length - field_values.length)
+      #field_values = line.match(/#{t}/).captures      
 
       @id = (@id.to_i + 1).to_s      
       record = Element.new(tag_name)
@@ -134,7 +148,7 @@ class Polyrex
   def attach_create_handlers(names)
     methodx = names.map do |name|
 %Q(
-  def create_#{name}(params) 
+  def create_#{name.downcase}(params) 
     self.create.#{name.downcase}
   end
 )
@@ -176,6 +190,10 @@ class Polyrex
     load_handlers(schema)
     @parent_node = XPath.first(@doc.root,'records')    
 
-  end    
+  end
+  
+  def tail_map(a)
+    [a] + (a.length > 1 ? tail_map(a[0..-2]) : [])
+  end  
   
 end
