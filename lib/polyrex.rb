@@ -42,7 +42,7 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = XPath.first(@doc.root, "//[@id='#{id}']")
-    self
+    PolyrexObjects.new(@parent_node, @id)
   end
 
   alias id find_by_id
@@ -63,10 +63,11 @@ class Polyrex
   end
   
   def records
-    XPath.each(@doc.root, "records/*") do |record|      
-      yield(@objects_a[0].new(record), @id)
+    XPath.match(@doc.root, "records/*").map do |record|      
+      @objects_a[0].new(record, @id)
     end
   end
+  
 
   private
 
