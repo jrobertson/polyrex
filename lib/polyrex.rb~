@@ -7,6 +7,7 @@ require 'line-tree'
 require 'polyrex-objects'
 require 'polyrex-createobject'
 require 'rexml/document'
+require 'ostruct'
 
 class Polyrex
   include REXML
@@ -42,7 +43,7 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = XPath.first(@doc.root, "//[@id='#{id}']")
-    self
+    PolyrexObjects.new(@parent_node, @id)
   end
 
   alias id find_by_id
@@ -68,6 +69,9 @@ class Polyrex
     end
   end
   
+  def summary
+    OpenStruct.new Hash[*XPath.match(@doc.root, "summary/*").map {|x| [x.name, x.text]}.flatten]
+  end
 
   private
 
