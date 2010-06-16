@@ -8,6 +8,7 @@ require 'polyrex-objects'
 require 'polyrex-createobject'
 require 'rexml/document'
 require 'ostruct'
+require 'polyrex-object-methods'
 
 class Polyrex
   include REXML
@@ -43,7 +44,7 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = XPath.first(@doc.root, "//[@id='#{id}']")
-    PolyrexObjects.new(@parent_node, @id)
+    self
   end
 
   alias id find_by_id
@@ -186,19 +187,41 @@ class Polyrex
       buffer = File.open(s,'r').read
     end
 
-    puts '*' + buffer + '*'
     @doc = Document.new buffer
+    schema = @doc.root.text('summary/schema')
+    
+    unless @format_masks
+      @format_masks = XPath.match(@doc.root, '//format_mask/text()').map &:to_s 
+      schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
+      @recordx = schema_rpath.split('/')
+      @recordx.shift
+    end
+    
     @id = XPath.match(@doc.root, '//@id').map{|x| x.value.to_i}.max.to_i + 1
     
-    schema = @doc.root.text('summary/schema')
     #puts 'schema : ' + schema
     load_handlers(schema)
+    load_find_by(schema)
     @parent_node = XPath.first(@doc.root,'records')    
 
   end
   
   def tail_map(a)
     [a] + (a.length > 1 ? tail_map(a[0..-2]) : [])
-  end  
+  end
+
+  def load_find_by(schema)  
+    a = PolyrexObjectMethods.new(schema).to_a
+
+    methodx = a.map do |class_name, methods| 
+      class_name.downcase!
+      methods.map do |method_name| 
+        xpath = %Q(XPath.first(@doc.root, "//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
+        "def find_by_%s_%s(val) @parent_node = %s;  self.%s end" % [class_name, method_name, xpath, class_name]
+      end 
+    end
+
+    self.instance_eval methodx.join("\n")
+  end
   
 end
