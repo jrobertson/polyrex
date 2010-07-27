@@ -18,6 +18,7 @@ class Polyrex
   end
 
   def create(id=nil)
+    # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
     @create.id = id || @id
     @create.record = @parent_node
     @create

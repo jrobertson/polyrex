@@ -18,6 +18,7 @@ class Polyrex
   end
 
   def create(id=nil)
+    # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
     @create.id = id || @id
     @create.record = @parent_node
     @create
@@ -102,7 +103,7 @@ class Polyrex
   end
   
   def load_handlers(schema)
-    @create = PolyrexCreateObject.new(schema)
+    @create = PolyrexCreateObject.new(schema, @id)
     objects = PolyrexObjects.new(schema)    
     @objects = objects.to_h
     @objects_a = objects.to_a
@@ -155,7 +156,7 @@ class Polyrex
     methodx = names.map do |name|
 %Q(
   def create_#{name.downcase}(params) 
-    self.create.#{name.downcase}(params)
+    self.create.#{name.downcase}
   end
 )
     end
