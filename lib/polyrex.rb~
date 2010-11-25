@@ -103,7 +103,7 @@ class Polyrex
   end
   
   def load_handlers(schema)
-    @create = PolyrexCreateObject.new(schema)
+    @create = PolyrexCreateObject.new(schema, @id)
     objects = PolyrexObjects.new(schema)    
     @objects = objects.to_h
     @objects_a = objects.to_a
