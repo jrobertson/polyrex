@@ -14,12 +14,13 @@ class Polyrex
   include REXML
 
   def initialize(location)
+    @id = '0'
     open(location)    
   end
 
   def create(id=nil)
     # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
-    @create.id = id || @id
+    @create.id = (id || @id)
     @create.record = @parent_node
     @create
   end
@@ -91,7 +92,7 @@ class Polyrex
       summary = field_names.map {|x| "<%s/>" % x}.join
     end
     
-    summary << "<schema>#{schema}</schema>"
+    summary << "<recordx_type>polyrex</recordx_type><schema>#{schema}</schema>"
     #----
     
     @schema = schema
@@ -128,7 +129,7 @@ class Polyrex
       field_values += [''] * (@field_names.length - field_values.length)
       #field_values = line.match(/#{t}/).captures      
 
-      @id = (@id.to_i + 1).to_s      
+      @id.succ!
       record = Element.new(tag_name)
       record.add_attribute('id', @id)
       summary = Element.new('summary')
@@ -198,7 +199,8 @@ class Polyrex
       @recordx.shift
     end
     
-    @id = XPath.match(@doc.root, '//@id').map{|x| x.value.to_i}.max.to_i + 1
+    ids = XPath.match(@doc.root, '//@id')
+    @id = ids.map{|x| x.value.to_i}.max.to_s.succ unless ids.empty?
     
     #puts 'schema : ' + schema
     load_handlers(schema)
