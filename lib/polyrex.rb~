@@ -6,12 +6,11 @@ require 'polyrex-schema'
 require 'line-tree'
 require 'polyrex-objects'
 require 'polyrex-createobject'
-require 'rexml/document'
 require 'ostruct'
 require 'polyrex-object-methods'
+require 'rexle'
 
 class Polyrex
-  include REXML
 
   def initialize(location)
     @id = '0'
@@ -26,8 +25,11 @@ class Polyrex
   end
 
   def delete(id=nil)
-    self.find_by_id(id) if id
-    @parent_node.parent.delete @parent_node
+    @doc.delete("//[@id='#{id}'")
+  end
+  
+  def element(s)
+    @doc.element s
   end
 
   def record()
@@ -45,7 +47,7 @@ class Polyrex
   # -- start of crud methods -- 
 
   def find_by_id(id)
-    @parent_node = XPath.first(@doc.root, "//[@id='#{id}']")
+    @parent_node = @doc.element("//[@id='#{id}']")
     self
   end
 
@@ -63,25 +65,25 @@ class Polyrex
   end
   
   def xpath(s)
-    XPath.first(@doc.root, s)
+    @doc.element s
   end
   
   def records
-    XPath.match(@doc.root, "records/*").map do |record|      
+    @doc.xpath("records/*").map do |record|      
       @objects_a[0].new(record, @id)
     end
   end
   
   def summary
-    OpenStruct.new Hash[*XPath.match(@doc.root, "summary/*").map {|x| [x.name, x.text]}.flatten]
+    OpenStruct.new Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]
   end
 
   private
 
   def polyrex_new(schema)
     # -- required for the parsing feature
-    doc = Document.new(PolyrexSchema.new(schema).to_s)
-    @format_masks = XPath.match(doc.root, '//format_mask/text()').map &:to_s
+    doc = Rexle.new(PolyrexSchema.new(schema).to_s)
+    @format_masks = doc.xpath('//format_mask/text()')
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
     @recordx = schema_rpath.split('/')
     
@@ -127,21 +129,22 @@ class Polyrex
       pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
       field_values = line.match(/#{pattern}/).captures      
       field_values += [''] * (@field_names.length - field_values.length)
-      #field_values = line.match(/#{t}/).captures      
 
       @id.succ!
-      record = Element.new(tag_name)
-      record.add_attribute('id', @id)
-      summary = Element.new('summary')
+
+      record = Rexle::Element.new(tag_name)
+      record.add_attribute('id' => @id.clone)
+      summary = Rexle::Element.new('summary')
       
       @field_names.zip(field_values).each do |name, value|  
-        field =  Element.new(name.to_s)
+        field =  Rexle::Element.new(name.to_s)
         field.text = value
         summary.add field
       end
-      summary.add Element.new('format_mask').add_text(@format_masks[i])
+
+      summary.add Rexle::Element.new('format_mask').add_text(@format_masks[i])
       
-      new_records = Element.new('records')
+      new_records = Rexle::Element.new('records')
 
       record.add summary
       record.add new_records
@@ -189,23 +192,22 @@ class Polyrex
       buffer = File.open(s,'r').read
     end
 
-    @doc = Document.new buffer
+    @doc = Rexle.new buffer
     schema = @doc.root.text('summary/schema')
     
     unless @format_masks
-      @format_masks = XPath.match(@doc.root, '//format_mask/text()').map &:to_s 
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
       @recordx = schema_rpath.split('/')
       @recordx.shift
     end
     
-    ids = XPath.match(@doc.root, '//@id')
-    @id = ids.map{|x| x.value.to_i}.max.to_s.succ unless ids.empty?
+    id = @doc.xpath('max(//@id)')
+    @id = id.to_s.succ if id
     
-    #puts 'schema : ' + schema
     load_handlers(schema)
     load_find_by(schema)
-    @parent_node = XPath.first(@doc.root,'records')    
+
+    @parent_node = @doc.element('records')
 
   end
   
@@ -219,7 +221,7 @@ class Polyrex
     methodx = a.map do |class_name, methods| 
       class_name.downcase!
       methods.map do |method_name| 
-        xpath = %Q(XPath.first(@doc.root, "//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
+        xpath = %Q(@doc.xpath("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
         "def find_by_%s_%s(val) @parent_node = %s;  self.%s end" % [class_name, method_name, xpath, class_name]
       end 
     end

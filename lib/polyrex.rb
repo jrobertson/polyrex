@@ -27,6 +27,10 @@ class Polyrex
   def delete(id=nil)
     @doc.delete("//[@id='#{id}'")
   end
+  
+  def element(s)
+    @doc.element s
+  end
 
   def record()
     @parent_node
@@ -61,7 +65,7 @@ class Polyrex
   end
   
   def xpath(s)
-    @doc.element s
+    @doc.xpath s
   end
   
   def records
