@@ -64,9 +64,19 @@ class Polyrex
     self
   end
   
-  def xpath(s)
-    @doc.xpath s
+  def element(s)
+    @doc.element(s)
   end
+
+  def xpath(s, &blk)
+    #XPath.first(@doc.root, s)
+    if block_given? then
+      @doc.xpath(s, &blk)
+    else
+      @doc.xpath s
+    end
+  end
+
   
   def records
     @doc.xpath("records/*").map do |record|      
@@ -186,7 +196,7 @@ class Polyrex
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
       buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
-    elsif s[/\</] # xml
+    elsif s[/</] # xml
       buffer = s
     else # local file
       buffer = File.open(s,'r').read

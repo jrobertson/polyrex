@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '0.7.6'
+  s.version = '0.7.7'
   s.summary = 'polyrex'
   s.files = Dir['lib/**/*.rb']
   s.add_dependency('polyrex-schema')
