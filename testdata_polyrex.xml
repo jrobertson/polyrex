@@ -1,0 +1,326 @@
+<tests>
+  <summary/>
+  <records>
+    <test>
+      <summary>
+        <path>1</path>
+        <description>Creating a new document from a schema</description>
+      </summary>
+      <records>
+        <io>
+          <summary>
+            <type>input</type>
+            <schema>latest_posts/posts[title]/entry[title]</schema>
+          </summary>
+        </io>
+        <io>
+          <summary>
+            <type>output</type>
+            <xml>
+              <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<latest_posts>
+   <summary>
+      <recordx_type>polyrex</recordx_type>
+      <schema>latest_posts/posts[title]/entry[title]</schema>
+   </summary>
+   <records/>
+</latest_posts>
+              ]]>
+            </xml>
+          </summary>
+        </io>
+      </records>
+    </test>
+    <test>
+      <summary>
+        <path>2</path>
+        <description>Creating a new document from xml</description>
+      </summary>
+      <records>
+        <io>
+          <summary>
+            <type>input</type>
+            <xml>
+              <![CDATA[
+<latest_posts><summary><recordx_type>polyrex</recordx_type><schema>latest_posts/posts[title]/entry[title]</schema></summary><records></records></latest_posts>
+              ]]>
+            </xml>
+          </summary>
+        </io>
+        <io>
+          <summary>
+            <type>output</type>
+            <xml>
+              <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<latest_posts>
+   <summary>
+      <recordx_type>polyrex</recordx_type>
+      <schema>latest_posts/posts[title]/entry[title]</schema>
+   </summary>
+   <records/>
+</latest_posts>
+
+              ]]>
+            </xml>
+          </summary>
+        </io>
+      </records>
+    </test>
+    <test>
+      <summary>
+        <path>3</path>
+        <description>Creating a new record</description>
+      </summary>
+      <records>
+        <io>
+          <summary>
+            <type>input</type>
+            <schema>latest_posts/posts[title]/entry[title]</schema>
+            <title>def</title>
+          </summary>
+        </io>
+        <io>
+          <summary>
+            <type>output</type>
+            <xml>
+              <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<latest_posts>
+   <summary>
+      <recordx_type>polyrex</recordx_type>
+      <schema>latest_posts/posts[title]/entry[title]</schema>
+   </summary>
+   <records>
+      <posts id="1">
+         <summary>
+            <title>def</title>
+            <format_mask>[!title]</format_mask>
+            <recordx_type>polyrex</recordx_type>
+            <schema>posts[title]</schema>
+         </summary>
+         <records/>
+      </posts>
+   </records>
+</latest_posts>
+              ]]>
+            </xml>
+          </summary>
+        </io>
+      </records>
+    </test>
+    <test>
+      <summary>
+        <path>4</path>
+        <description>Creating a new record with a block</description>
+      </summary>
+      <records>
+        <io>
+          <summary>
+            <type>input</type>
+            <schema>latest_posts/posts[title]/entry[title]</schema>
+            <title>def</title>
+            <title2>fun</title2>
+            <title3>magic</title3>
+          </summary>
+        </io>
+        <io>
+          <summary>
+            <type>output</type>
+            <xml>
+              <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<latest_posts>
+   <summary>
+      <recordx_type>polyrex</recordx_type>
+      <schema>latest_posts/posts[title]/entry[title]</schema>
+   </summary>
+   <records>
+      <posts id="1">
+         <summary>
+            <title>def</title>
+            <format_mask>[!title]</format_mask>
+            <recordx_type>polyrex</recordx_type>
+            <schema>posts[title]</schema>
+         </summary>
+         <records>
+            <entry id="2">
+               <summary>
+                  <title>fun</title>
+                  <format_mask>[!title]</format_mask>
+                  <recordx_type>polyrex</recordx_type>
+                  <schema>entry[title]</schema>
+               </summary>
+               <records/>
+            </entry>
+            <entry id="3">
+               <summary>
+                  <title>magic</title>
+                  <format_mask>[!title]</format_mask>
+                  <recordx_type>polyrex</recordx_type>
+                  <schema>entry[title]</schema>
+               </summary>
+               <records/>
+            </entry>
+         </records>
+      </posts>
+   </records>
+</latest_posts>
+              ]]>
+            </xml>
+          </summary>
+        </io>
+      </records>
+    </test>
+    <test>
+      <summary>
+        <path>5</path>
+        <description>Parsing a document</description>
+      </summary>
+      <records>
+        <io>
+          <summary>
+            <type>input</type>
+            <schema>entities/section[name]/entity[name,count]</schema>
+            <lines>
+              <![CDATA[
+main
+  entry 1
+tags
+              ]]>
+            </lines>
+          </summary>
+        </io>
+        <io>
+          <summary>
+            <type>output</type>
+            <xml>
+              <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<entities>
+   <summary>
+      <recordx_type>polyrex</recordx_type>
+      <schema>entities/section[name]/entity[name,count]</schema>
+   </summary>
+   <records>
+      <section id="1">
+         <summary>
+            <name>main</name>
+            <format_mask>[!name]</format_mask>
+         </summary>
+         <records>
+            <entity id="2">
+               <summary>
+                  <name>entry</name>
+                  <count>1</count>
+                  <format_mask>[!name] [!count]</format_mask>
+               </summary>
+               <records/>
+            </entity>
+         </records>
+      </section>
+      <section id="3">
+         <summary>
+            <name>tags</name>
+            <format_mask>[!name]</format_mask>
+         </summary>
+         <records/>
+      </section>
+   </records>
+</entities>
+              ]]>
+            </xml>
+          </summary>
+        </io>
+      </records>
+    </test>
+    <test>
+      <summary>
+        <path>6</path>
+        <description>creating a record from an id</description>
+      </summary>
+      <records>
+        <io>
+          <summary><?xml version="1.0" encoding="UTF-8"?>
+            <type>input</type>
+            <schema>entities/section[name]/entity[name,count]</schema>
+            <lines>
+              <![CDATA[
+main
+  entry 1
+tags
+              ]]>
+            </lines>
+            <id>1</id>
+            <title>fun</title>
+            <count>1</count>
+          </summary>
+        </io>
+        <io>
+          <summary>
+            <type>output</type>
+            <xml>
+              <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<entities>
+   <summary>
+      <recordx_type>polyrex</recordx_type>
+      <schema>entities/section[name]/entity[name,count]</schema>
+   </summary>
+   <records>
+      <section id="1">
+         <summary>
+            <name>main</name>
+            <format_mask>[!name]</format_mask>
+         </summary>
+         <records>
+            <entity id="2">
+               <summary>
+                  <name>entry</name>
+                  <count>1</count>
+                  <format_mask>[!name] [!count]</format_mask>
+               </summary>
+               <records/>
+            </entity>
+            <entity id="4">
+               <summary>
+                  <name>fun</name>
+                  <count>1</count>
+                  <format_mask>[!name] [!count]</format_mask>
+                  <recordx_type>polyrex</recordx_type>
+                  <schema>entity[name,count]</schema>
+               </summary>
+               <records/>
+            </entity>
+         </records>
+      </section>
+      <section id="3">
+         <summary>
+            <name>tags</name>
+            <format_mask>[!name]</format_mask>
+         </summary>
+         <records/>
+      </section>
+   </records>
+</entities>
+              ]]>
+            </xml>
+          </summary>
+        </io>
+      </records>
+    </test>
+  </records>
+</tests>
