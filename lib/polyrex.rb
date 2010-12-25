@@ -19,17 +19,14 @@ class Polyrex
 
   def create(id=nil)
     # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
-    @create.id = (id || @id)
-    @create.record = @parent_node
+    @create.id = (id || @id.succ!)
+
+    @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
     @create
   end
 
   def delete(id=nil)
     @doc.delete("//[@id='#{id}'")
-  end
-  
-  def element(s)
-    @doc.element s
   end
 
   def record()
@@ -69,14 +66,13 @@ class Polyrex
   end
 
   def xpath(s, &blk)
-    #XPath.first(@doc.root, s)
+
     if block_given? then
       @doc.xpath(s, &blk)
     else
       @doc.xpath s
     end
   end
-
   
   def records
     @doc.xpath("records/*").map do |record|      
@@ -192,17 +188,19 @@ class Polyrex
   end
   
   def open(s)
-    if s[/\[/] then  # schema
+
+    if s[/</] # xml
+      buffer = s
+    elsif s[/\[/] then  # schema
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
       buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
-    elsif s[/</] # xml
-      buffer = s
     else # local file
       buffer = File.open(s,'r').read
     end
 
     @doc = Rexle.new buffer
+
     schema = @doc.root.text('summary/schema')
     
     unless @format_masks

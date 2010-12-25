@@ -27,10 +27,6 @@ class Polyrex
   def delete(id=nil)
     @doc.delete("//[@id='#{id}'")
   end
-  
-  def element(s)
-    @doc.element s
-  end
 
   def record()
     @parent_node
@@ -64,8 +60,17 @@ class Polyrex
     self
   end
   
-  def xpath(s)
-    @doc.xpath s
+  def element(s)
+    @doc.element(s)
+  end
+
+  def xpath(s, &blk)
+    #XPath.first(@doc.root, s)
+    if block_given? then
+      @doc.xpath(s, &blk)
+    else
+      @doc.xpath s
+    end
   end
   
   def records
@@ -182,17 +187,19 @@ class Polyrex
   end
   
   def open(s)
+
     if s[/\[/] then  # schema
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
       buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
-    elsif s[/\</] # xml
+    elsif s[/</] # xml
       buffer = s
     else # local file
       buffer = File.open(s,'r').read
     end
 
     @doc = Rexle.new buffer
+
     schema = @doc.root.text('summary/schema')
     
     unless @format_masks
