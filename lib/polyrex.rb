@@ -124,7 +124,12 @@ class Polyrex
     
     a.each do |x|    
       
-      tag_name = @recordx[i].to_s      
+      unless @recordx[i] then
+        @recordx[i] = @recordx[-1].clone
+        @format_masks[i] = @format_masks[-1]
+      end
+
+      tag_name = @recordx[i].to_s
       line = x.shift
       
       @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
