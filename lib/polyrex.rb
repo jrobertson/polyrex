@@ -18,9 +18,8 @@ class Polyrex
   end
 
   def create(id=nil)
-    # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
+     # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
     @create.id = (id || @id.succ!)
-
     @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
     @create
   end
@@ -33,11 +32,13 @@ class Polyrex
     @parent_node
   end
 
-  def to_xml()
-    @doc.to_s
+  def to_xml(options={})
+    @doc.to_s(options)
   end
 
-  def save(filepath)    
+  def save(filepath=nil)    
+    filepath ||= @local_filepath
+    @local_filepath = filepath
     File.open(filepath,'w'){|f| @doc.write f}    
   end  
   
@@ -202,6 +203,7 @@ class Polyrex
       buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
     else # local file
       buffer = File.open(s,'r').read
+      @local_filepath = s
     end
 
     @doc = Rexle.new buffer
