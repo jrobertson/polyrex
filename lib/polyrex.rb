@@ -11,15 +11,19 @@ require 'polyrex-object-methods'
 require 'rexle'
 
 class Polyrex
+  attr_accessor :summary_fields
 
   def initialize(location)
+
     @id = '0'
-    open(location)    
+    open(location)
+    summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
+    @summary = OpenStruct.new summary_h
+    @summary_fields = summary_h.keys.map(&:to_sym)
   end
 
   def create(id=nil)
      # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
-    @create.id = (id || @id.succ!)
     @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
     @create
   end
@@ -33,10 +37,12 @@ class Polyrex
   end
 
   def to_xml(options={})
+    refresh_summary
     @doc.to_s(options)
   end
 
   def save(filepath=nil)    
+    refresh_summary
     filepath ||= @local_filepath
     @local_filepath = filepath
     File.open(filepath,'w'){|f| @doc.write f}    
@@ -82,7 +88,7 @@ class Polyrex
   end
   
   def summary
-    OpenStruct.new Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]
+    @summary
   end
 
   private
@@ -242,6 +248,12 @@ class Polyrex
     end
 
     self.instance_eval methodx.join("\n")
+  end
+
+  def refresh_summary()
+    @summary_fields.each do |x| 
+      @doc.element('summary/' + x.to_s).text = @summary.method(x).call
+    end
   end
   
 end
