@@ -8,10 +8,11 @@ require 'polyrex-objects'
 require 'polyrex-createobject'
 require 'ostruct'
 require 'polyrex-object-methods'
+require 'polyrex-xslt'
 require 'rexle'
 
 class Polyrex
-  attr_accessor :summary_fields
+  attr_accessor :summary_fields, :xslt_schema
 
   def initialize(location)
 
@@ -20,6 +21,7 @@ class Polyrex
     summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     @summary = OpenStruct.new summary_h
     @summary_fields = summary_h.keys.map(&:to_sym)
+    @polyrex_xslt = PolyrexXSLT.new
   end
 
   def create(id=nil)
@@ -71,15 +73,6 @@ class Polyrex
   def element(s)
     @doc.element(s)
   end
-
-  def xpath(s, &blk)
-
-    if block_given? then
-      @doc.xpath(s, &blk)
-    else
-      @doc.xpath s
-    end
-  end
   
   def records
     @doc.xpath("records/*").map do |record|      
@@ -89,6 +82,25 @@ class Polyrex
   
   def summary
     @summary
+  end
+
+  def to_xslt()    
+    @polyrex_xslt.schema = @schema
+    @polyrex_xslt.to_xslt
+  end
+
+  def xpath(s, &blk)
+
+    if block_given? then
+      @doc.xpath(s, &blk)
+    else
+      @doc.xpath s
+    end
+  end
+
+  def xslt_schema(s)
+    @polyrex_xslt.xslt_schema = s
+    self
   end
 
   private
@@ -255,5 +267,5 @@ class Polyrex
       @doc.element('summary/' + x.to_s).text = @summary.method(x).call
     end
   end
-  
+
 end

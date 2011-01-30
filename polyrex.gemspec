@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '0.8.3'
+  s.version = '0.8.4'
   s.summary = 'polyrex'
   s.files = Dir['lib/**/*.rb']
   s.add_dependency('polyrex-schema')
@@ -8,4 +8,5 @@ Gem::Specification.new do |s|
   s.add_dependency('polyrex-objects')
   s.add_dependency('polyrex-createobject')
   s.add_dependency('polyrex-object-methods')
+  s.add_dependency('polyrex-xslt')
 end
