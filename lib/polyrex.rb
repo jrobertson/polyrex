@@ -16,7 +16,7 @@ class Polyrex
 
   def initialize(location)
 
-    @id = '0'
+    @id = '1'
     open(location)
     summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     @summary = OpenStruct.new summary_h
@@ -26,6 +26,8 @@ class Polyrex
 
   def create(id=nil)
      # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
+    @id.succ!
+    @create.id = id || @id
     @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
     @create
   end
@@ -64,11 +66,12 @@ class Polyrex
   def format_masks
     @format_masks
   end 
-
-  def parse(lines)
-    format_line!(@parent_node, LineTree.new(lines).to_a)
+  
+  def parse(buffer='')
+    buffer = yield if block_given?          
+    string_parse buffer
     self
-  end
+  end    
   
   def element(s)
     @doc.element(s)
@@ -129,6 +132,10 @@ class Polyrex
 
     ("<%s><summary>%s</summary><records/></%s>" % [root_name, (summary || '') , root_name])
   end
+  
+  def string_parse(lines)
+    format_line!(@parent_node, LineTree.new(lines).to_a)
+  end  
   
   def load_handlers(schema)
     @create = PolyrexCreateObject.new(schema, @id)
