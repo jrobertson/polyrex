@@ -16,7 +16,7 @@ class Polyrex
 
   def initialize(location)
 
-    @id = '0'
+    @id = '1'
     open(location)
     summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     @summary = OpenStruct.new summary_h
@@ -26,6 +26,8 @@ class Polyrex
 
   def create(id=nil)
      # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
+    @id.succ!
+    @create.id = id || @id
     @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
     @create
   end
@@ -147,7 +149,8 @@ class Polyrex
   def format_line!(records, a, i=0)
     
     a.each do |x|    
-      
+      puts 'x : ' + i.to_s + x.inspect
+      puts @format_masks[i]
       unless @recordx[i] then
         @recordx[i] = @recordx[-1].clone
         @format_masks[i] = @format_masks[-1]
@@ -156,14 +159,28 @@ class Polyrex
       tag_name = @recordx[i].to_s
       line = x.shift
       
-      @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
-      t = @format_masks[i].to_s.gsub(/\[!(\w+)\]/, '(.*)').sub(/\[/,'\[').sub(/\]/,'\]')
-      a = t.reverse.split(/(?=\)\*\.\()/).reverse.map &:reverse
+      unless @format_masks[i][/^\(.*\)$/] then
+        
+        @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
+        t = @format_masks[i].to_s.gsub(/\[!(\w+)\]/, '(.*)').sub(/\[/,'\[').sub(/\]/,'\]')
+        a = t.reverse.split(/(?=\)\*\.\()/).reverse.map &:reverse
 
-      patterns = tail_map(a)
-      pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
-      field_values = line.match(/#{pattern}/).captures      
-      field_values += [''] * (@field_names.length - field_values.length)
+        patterns = tail_map(a)
+        pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
+        field_values = line.match(/#{pattern}/).captures      
+        field_values += [''] * (@field_names.length - field_values.length)
+      else
+
+        patterns = @format_masks[i][1..-2].split('|').map do |x|
+          x.to_s.gsub(/\[!(\w+)\]/, '(.*)').sub(/\[/,'\[').sub(/\]/,'\]')
+        end
+
+        pattern = patterns.detect {|x| line.match(/#{x}/)}
+        @field_names =  @format_masks[i][1..-2].split('|')[patterns.index(pattern)]\
+            .to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
+        puts 
+        field_values = line.match(/#{pattern}/).captures        
+      end
 
       @id.succ!
 

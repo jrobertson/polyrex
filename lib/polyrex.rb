@@ -12,11 +12,11 @@ require 'polyrex-xslt'
 require 'rexle'
 
 class Polyrex
-  attr_accessor :summary_fields, :xslt_schema
+  attr_accessor :summary_fields, :xslt_schema, :id_counter
 
-  def initialize(location)
+  def initialize(location, id_counter='1')
 
-    @id = '1'
+    @id_counter = id_counter
     open(location)
     summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     @summary = OpenStruct.new summary_h
@@ -25,9 +25,9 @@ class Polyrex
   end
 
   def create(id=nil)
-     # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
-    @id.succ!
-    @create.id = id || @id
+      # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
+    
+    @create.id = id || @id_counter
     @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
     @create
   end
@@ -56,10 +56,13 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = @doc.element("//[@id='#{id}']")
+  end
+
+  def id(id)
+    @parent_node = @doc.element("//[@id='#{id}']")
     self
   end
 
-  alias id find_by_id
   # -- end of crud methods --
   
   # -- start of full text edit methods
@@ -79,7 +82,7 @@ class Polyrex
   
   def records
     @doc.xpath("records/*").map do |record|      
-      @objects_a[0].new(record, @id)
+      @objects_a[0].new(record)
     end
   end
   
@@ -87,6 +90,10 @@ class Polyrex
     @summary
   end
 
+  def to_a()
+    recordx_map @doc.root
+  end
+  
   def to_xslt()    
     @polyrex_xslt.schema = @schema
     @polyrex_xslt.to_xslt
@@ -126,11 +133,29 @@ class Polyrex
     #----
     
     @schema = schema
-    @id = '0'
+    @id_counter = '0'
 
     root_name = @recordx.shift
 
     ("<%s><summary>%s</summary><records/></%s>" % [root_name, (summary || '') , root_name])
+  end
+  
+  def recordx_map(node)
+    # get the summary
+    summary = XPath.first(node, 'summary')
+
+    # get the fields
+    fields = summary.elements.map do |x|
+      next if %w(schema format_mask recordx_type).include? x.name 
+      r = x.text.to_s.gsub(/^[\n\s]+/,'').length > 0 ? x.text : x.cdatas.join.strip
+      REXML::Text::unnormalize(r)
+    end
+
+    # get the records
+    records = XPath.first(node, 'records')
+    a = records.elements.map {|x| recordx_map x}
+    
+    [fields, a]
   end
   
   def string_parse(lines)
@@ -138,8 +163,9 @@ class Polyrex
   end  
   
   def load_handlers(schema)
-    @create = PolyrexCreateObject.new(schema, @id)
-    objects = PolyrexObjects.new(schema)    
+    @create = PolyrexCreateObject.new(schema, @id_counter)
+
+    objects = PolyrexObjects.new(schema, @id_counter)    
     @objects = objects.to_h
     @objects_a = objects.to_a
     attach_create_handlers(@objects.keys)
@@ -149,7 +175,7 @@ class Polyrex
   def format_line!(records, a, i=0)
     
     a.each do |x|    
-      
+
       unless @recordx[i] then
         @recordx[i] = @recordx[-1].clone
         @format_masks[i] = @format_masks[-1]
@@ -158,19 +184,39 @@ class Polyrex
       tag_name = @recordx[i].to_s
       line = x.shift
       
-      @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
-      t = @format_masks[i].to_s.gsub(/\[!(\w+)\]/, '(.*)').sub(/\[/,'\[').sub(/\]/,'\]')
-      a = t.reverse.split(/(?=\)\*\.\()/).reverse.map &:reverse
 
-      patterns = tail_map(a)
-      pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
-      field_values = line.match(/#{pattern}/).captures      
-      field_values += [''] * (@field_names.length - field_values.length)
+      
+      unless @format_masks[i][/^\(.*\)$/] then
 
-      @id.succ!
+        @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
+
+        t = regexify_fmask(@format_masks[i]) #.sub(/\[/,'\[').sub(/\]/,'\]')        
+        a = t.reverse.split(/(?=\)[^\(]+\()/).reverse.map &:reverse
+        patterns = tail_map(a)
+
+        pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
+
+        field_values = line.match(/#{pattern}/).captures      
+        field_values += [''] * (@field_names.length - field_values.length)
+      else
+
+        format_masks = @format_masks[i][1..-2].split('|')
+        patterns = format_masks.map do |x|
+          regexify_fmask(x) #.sub(/\[/,'\[').sub(/\]/,'\]')
+        end
+
+        pattern = patterns.detect {|x| line.match(/#{x}/)}
+        i = patterns.index(pattern)
+        
+        @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
+        
+        field_values = line.match(/#{pattern}/).captures        
+      end
+
+      @id_counter.succ!
 
       record = Rexle::Element.new(tag_name)
-      record.add_attribute('id' => @id.clone)
+      record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
       
       @field_names.zip(field_values).each do |name, value|  
@@ -211,7 +257,7 @@ class Polyrex
     self.instance_eval(
 %Q(
   def #{name.downcase}()     
-    @objects['#{name}'].new(@parent_node)
+    @objects['#{name}'].new(@parent_node, @id)
   end
 ))
     end
@@ -242,13 +288,32 @@ class Polyrex
     end
     
     id = @doc.xpath('max(//@id)')
-    @id = id.to_s.succ if id
+    @id_counter = id.to_s.succ if id
     
     load_handlers(schema)
     load_find_by(schema)
 
     @parent_node = @doc.element('records')
 
+  end
+  
+  def regexify_fmask(f)
+        
+    a = f.split(/(?=\[!\w+\])/).map do |x|
+
+      aa = x.split(/(?=[^\]]+$)/)
+
+      if aa.length == 2 and aa.first[/\[!\w+\]/] then
+        field, delimiter = *aa
+        delimiter ||= '$'
+        d = delimiter[0]
+        "([^%s]+)%s" % ([d] * 2)
+      else
+        x.sub(/\[!\w+\]/,'(.*)')
+      end
+    end
+
+    a.join            
   end
   
   def tail_map(a)
