@@ -1,7 +1,8 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '0.8.8'
+  s.version = '0.8.9'
   s.summary = 'polyrex'
+  s.authors = ['James Robertson']
   s.files = Dir['lib/**/*.rb']
   s.add_dependency('polyrex-schema')
   s.add_dependency('line-tree')
