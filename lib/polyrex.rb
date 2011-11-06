@@ -353,7 +353,7 @@ class Polyrex
     methodx = a.map do |class_name, methods| 
       class_name.downcase!
       methods.map do |method_name| 
-        xpath = %Q(@doc.xpath("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
+        xpath = %Q(@doc.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
         "def find_by_%s_%s(val) @parent_node = %s;  self.%s end" % [class_name, method_name, xpath, class_name]
       end 
     end
