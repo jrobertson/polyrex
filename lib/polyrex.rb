@@ -20,7 +20,7 @@ class Polyrex
     
     if location then
       open(location)
-      summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
+      summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
       @summary = OpenStruct.new summary_h
       @summary_fields = summary_h.keys.map(&:to_sym)
     end
@@ -32,12 +32,12 @@ class Polyrex
       # @create is a PolyrexCreateObject, @parent_node is a REXML::Element pointing to the current record
     
     @create.id = id || @id_counter
-    @create.record = @parent_node.name == 'records' ? @parent_node : @parent_node.element('records')
+    @create.record = @parent_node.name == 'records' ? @parent_node.root : @parent_node.root.element('records')
     @create
   end
 
   def delete(id=nil)
-    @doc.delete("//[@id='#{id}'")
+    @doc.root.delete("//[@id='#{id}'")
   end
 
   def record()
@@ -59,11 +59,11 @@ class Polyrex
   # -- start of crud methods -- 
 
   def find_by_id(id)
-    @parent_node = @doc.element("//[@id='#{id}']")
+    @parent_node = @doc.root.element("//[@id='#{id}']")
   end
 
   def id(id)
-    @parent_node = @doc.element("//[@id='#{id}']")
+    @parent_node = @doc.root.element("//[@id='#{id}']")
     self
   end
 
@@ -81,18 +81,18 @@ class Polyrex
   end    
   
   def element(s)
-    @doc.element(s)
+    @doc.root.element(s)
   end
   
   def records
-    @doc.xpath("records/*").map do |record|      
+    @doc.root.xpath("records/*").map do |record|      
       @objects_a[0].new(record)
     end
   end
 
   def schema=(s)
     open s
-    summary_h = Hash[*@doc.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
+    summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     @summary = OpenStruct.new summary_h
     @summary_fields = summary_h.keys.map(&:to_sym)    
     self
@@ -114,9 +114,9 @@ class Polyrex
   def xpath(s, &blk)
 
     if block_given? then
-      @doc.xpath(s, &blk)
+      @doc.root.xpath(s, &blk)
     else
-      @doc.xpath s
+      @doc.root.xpath s
     end
   end
 
@@ -130,7 +130,8 @@ class Polyrex
   def polyrex_new(schema)
     # -- required for the parsing feature
     doc = Rexle.new(PolyrexSchema.new(schema).to_s)
-    @format_masks = doc.xpath('//format_mask/text()')
+    @format_masks = doc.root.xpath('//format_mask/text()')
+    #puts '@format_masks : ' + @format_masks.inspect
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
 
     @recordx = schema_rpath.split('/')
@@ -172,6 +173,7 @@ class Polyrex
   end
   
   def string_parse(lines)
+
     raw_header = lines.slice!(/<\?polyrex[^>]+>/)
 
     if raw_header then
@@ -182,7 +184,7 @@ class Polyrex
               end
     end
 
-    format_line!(@parent_node, LineTree.new(lines.strip).to_a)
+    format_line!(@parent_node.root, LineTree.new(lines.strip).to_a)
   end  
   
   def load_handlers(schema)
@@ -209,7 +211,6 @@ class Polyrex
       line = x.shift
       
 
-      
       unless @format_masks[i][/^\(.*\)$/] then
 
         @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
@@ -241,6 +242,7 @@ class Polyrex
       @id_counter.succ!
 
       record = Rexle::Element.new(tag_name)
+
       record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
       
@@ -312,7 +314,7 @@ class Polyrex
       @recordx.shift
     end
     
-    id = @doc.xpath('max(//@id)')
+    id = @doc.root.xpath('max(//@id)')
     @id_counter = id.to_s.succ if id
     
     if schema then
@@ -320,7 +322,7 @@ class Polyrex
       load_find_by(schema)
     end
 
-    @parent_node = @doc.element('records')
+    @parent_node = @doc.root.element('records')
 
   end
   
@@ -353,8 +355,11 @@ class Polyrex
     methodx = a.map do |class_name, methods| 
       class_name.downcase!
       methods.map do |method_name| 
-        xpath = %Q(@doc.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
-        "def find_by_%s_%s(val) @parent_node = %s;  self.%s end" % [class_name, method_name, xpath, class_name]
+        xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
+        "def find_by_#{class_name}_#{method_name}(val) 
+          @parent_node = #{xpath}
+          @parent_node ? self.#{class_name} : nil
+        end"
       end 
     end
 
@@ -363,7 +368,7 @@ class Polyrex
 
   def refresh_summary()
     @summary_fields.each do |x| 
-      @doc.element('summary/' + x.to_s).text = @summary.method(x).call
+      @doc.root.element('summary/' + x.to_s).text = @summary.method(x).call
     end
   end
 
