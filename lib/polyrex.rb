@@ -25,7 +25,7 @@ class Polyrex
       @summary_fields = summary_h.keys.map(&:to_sym)
     end
     
-    @polyrex_xslt = PolyrexXSLT.new
+    @polyrex_xslt = RecordxXSLT.new
   end
 
   def create(id=nil)
