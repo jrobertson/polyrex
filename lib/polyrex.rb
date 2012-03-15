@@ -8,7 +8,7 @@ require 'polyrex-objects'
 require 'polyrex-createobject'
 require 'ostruct'
 require 'polyrex-object-methods'
-require 'polyrex-xslt'
+require 'recordx-xslt'
 require 'rexle'
 
 class Polyrex
