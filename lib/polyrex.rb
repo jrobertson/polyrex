@@ -120,7 +120,7 @@ class Polyrex
     end
   end
 
-  def xslt_schema(s)
+  def xslt_schema=(s)
     @polyrex_xslt.xslt_schema = s
     self
   end
