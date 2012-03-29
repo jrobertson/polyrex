@@ -49,12 +49,14 @@ class Polyrex
     @doc.to_s(options)
   end
 
-  def save(filepath=nil)    
+  def save(filepath=nil, options={})    
     refresh_summary
     filepath ||= @local_filepath
     @local_filepath = filepath
-    File.open(filepath,'w'){|f| @doc.write f}    
-  end  
+    xml = @doc.to_s(options)
+    buffer = block_given? ? yield(xml) : xml
+    File.open(filepath,'w'){|f| f.write buffer}    
+  end
   
   # -- start of crud methods -- 
 
@@ -120,7 +122,7 @@ class Polyrex
     end
   end
 
-  def xslt_schema(s)
+  def xslt_schema=(s)
     @polyrex_xslt.xslt_schema = s
     self
   end

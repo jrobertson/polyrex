@@ -49,12 +49,14 @@ class Polyrex
     @doc.to_s(options)
   end
 
-  def save(filepath=nil)    
+  def save(filepath=nil, options={})    
     refresh_summary
     filepath ||= @local_filepath
     @local_filepath = filepath
-    File.open(filepath,'w'){|f| @doc.write f}    
-  end  
+    xml = @doc.to_s(options)
+    buffer = block_given? ? yield(xml) : xml
+    File.open(filepath,'w'){|f| f.write buffer}    
+  end
   
   # -- start of crud methods -- 
 
@@ -172,9 +174,9 @@ class Polyrex
     [fields, a]
   end
   
-  def string_parse(lines)
+  def string_parse(buffer)
 
-    raw_header = lines.slice!(/<\?polyrex[^>]+>/)
+    raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
 
     if raw_header then
       header = raw_header[/<?polyrex (.*)?>/,1]
@@ -183,8 +185,21 @@ class Polyrex
                         self.method(name).call(value)
               end
     end
+    
+    raw_summary = schema[/\[([^\]]+)/,1]
+    raw_lines = buffer.strip.split(/\r?\n|\r(?!\n)/)    
+    
+    if raw_summary then
+      a_summary = raw_summary.split(',').map(&:strip)
+      
+      while raw_lines.first[/#{a_summary.join('|')}:\s+\w+/] do      
+        label, val = raw_lines.shift.match(/(\w+):\s+([^$]+)$/).captures
+        @summary.send (label + '=').to_sym, val
+      end
+    end
 
-    format_line!(@parent_node.root, LineTree.new(lines.strip).to_a)
+    @summary.format_mask = @format_mask    
+    format_line!(@parent_node.root, LineTree.new(raw_lines.join("\n").strip).to_a)
   end  
   
   def load_handlers(schema)
