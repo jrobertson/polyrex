@@ -194,7 +194,7 @@ class Polyrex
       
       while raw_lines.first[/#{a_summary.join('|')}:\s+\w+/] do      
         label, val = raw_lines.shift.match(/(\w+):\s+([^$]+)$/).captures
-        @summary.send (label + '=').to_sym, val
+        @summary.send((label + '=').to_sym, val)
       end
     end
 
