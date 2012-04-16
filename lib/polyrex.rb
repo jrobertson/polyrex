@@ -264,6 +264,8 @@ class Polyrex
         patterns = possible_patterns(@format_masks[i])        
         pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
         field_values = line.match(/#{pattern}/).captures      
+
+
         found_quotes = find_qpattern(pattern)
 
         if found_quotes then
@@ -441,7 +443,7 @@ class Polyrex
     else
       r2 = r
     end
-
+    
     rr = r2.map do |x|
       x.each_with_index.map do |item, i|
         d = a[i]
@@ -455,7 +457,11 @@ class Polyrex
       end
     end
 
-    rrr = rr.take(2**main_fields).map {|x| x + [a[-1] + '(.*)']} + rr
+    count = 2**main_fields
+    rr2 = rr.take(count).map {|x| x + [a[-1] + '(.*)']} 
+    wild_r = rr2.slice!(-1)
+
+    rrr = rr2 + rr[0..count-2] + [wild_r] + rr[count-1..-1]    
     
   end
 
