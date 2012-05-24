@@ -10,6 +10,7 @@ require 'polyrex-object-methods'
 require 'recordx-xslt'
 require 'rexle'
 require 'recordx'
+require 'rxraw-lineparser'
 
 module Enumerable
   def repeated_permutation(size, &blk)
@@ -60,6 +61,12 @@ class Polyrex
   def delete(id=nil)
     @doc.root.delete("//[@id='#{id}'")
   end
+  
+  def delimiter=(separator)
+    @format_masks.map! do |format_mask|
+      format_mask.to_s.gsub(/\s/, separator)
+    end
+  end  
 
   def record()
     @parent_node
@@ -199,11 +206,11 @@ class Polyrex
   def string_parse(buffer)
 
     raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
-
+    
     if raw_header then
       header = raw_header[/<?polyrex (.*)?>/,1]
-      header.scan(/\w+\="[^"]+\"/).map{|x| r = x.split(/=/); \
-             [(r[0] + "=").to_sym, r[1][/^"(.*)"$/,1]] }.each do |name, value|
+      header.scan(/\w+\=["'][^"']+["']/).map{|x| r = x.split(/=/); \
+             [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]] }.each do |name, value|
                         self.method(name).call(value)
               end
     end
@@ -252,27 +259,11 @@ class Polyrex
       line = x.shift
       
       unless @format_masks[i][/^\(.*\)$/] then
-
-        @field_names = @format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
-
-=begin        
-        t = regexify_fmask(@format_masks[i]) #.sub(/\[/,'\[').sub(/\]/,'\]')        
-        a = t.reverse.split(/(?=\)[^\(]+\()/).reverse.map &:reverse        
-        patterns = tail_map(a)
-=end
-
-        patterns = possible_patterns(@format_masks[i])        
-        pattern = patterns.detect {|x| line.match(/#{x.join}/)}.join
-        field_values = line.match(/#{pattern}/).captures      
-        found_quotes = find_qpattern(pattern)
-
-        if found_quotes then
-          found_quotes.each {|i| field_values[i] = field_values[i][1..-2]}
-        end        
-
-        field_values += [''] * (@field_names.length - field_values.length)
+        
+        @field_names, field_values = RXRawLineParser.new(format_masks[i]).parse(line)
+        
       else
-
+        
         format_masks = @format_masks[i][1..-2].split('|')
         patterns = format_masks.map do |x|
           regexify_fmask(x) #.sub(/\[/,'\[').sub(/\]/,'\]')
@@ -284,7 +275,7 @@ class Polyrex
         @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
         
         field_values = line.match(/#{pattern}/).captures        
-
+        
       end
 
       @id_counter.succ!
@@ -373,37 +364,10 @@ class Polyrex
     @parent_node = @doc.root.element('records')
 
   end
-  
-  def diminishing_permutation(max_fields)
-    result = max_fields.times.inject([]) do |r,i|
-      r + [1,0].repeated_permutation(max_fields-i).to_a
-    end
-  end
-
-  def find_qpattern(s)
-    s.split(/(?=\([^\)]+\))/).map.with_index\
-      .select{|x,i| x[/\["'\]\[\^"'\]\+\["'\]/] }.map(&:last)
-  end
-  
-  def fmask_delimiters(f)
-    a = f.split(/(?=\[!\w+\])/)[0..-2].map do |x|
-
-      aa = x.split(/(?=[^\]]+$)/)
-
-      if aa.length == 2 and aa.first[/\[!\w+\]/] then
-        field, delimiter = *aa
-        delimiter ||= '$'
-        d = delimiter[0]
-        d
-      end
-    end
-  end
-  
-  
-  # jr140412 to be removed 
+      
   def regexify_fmask(f)
 
-    a = f.split(/(?=\[!\w+\])/).i do |x|
+    a = f.split(/(?=\[!\w+\])/).map do |x|
 
       aa = x.split(/(?=[^\]]+$)/)
 
@@ -420,44 +384,10 @@ class Polyrex
     a.join            
   end
   
-  #jr140412 to be removed
   def tail_map(a)
     [a] + (a.length > 1 ? tail_map(a[0..-2]) : [])
   end
   
-  def possible_patterns(format_mask)
-    
-    tot_fields = format_mask.scan(/\[!\w+\]/).length
-    return [['(.*)']] if tot_fields <= 1
-    main_fields = tot_fields - 1
-    qpattern = %q{(["'][^"']+["'])}
-    
-    a = fmask_delimiters(format_mask)                                                       
-    r = diminishing_permutation(main_fields)
-
-    if r.length > 2 then
-      itemx  = [r.slice!(-2)]
-      r2 = r[0..-3] + itemx + r[-2..-1]
-    else
-      r2 = r
-    end
-
-    rr = r2.map do |x|
-      x.each_with_index.map do |item, i|
-        d = a[i]
-        case item
-          when  1
-            i > 0 ? d + qpattern : qpattern
-          when 0
-            s = "([^%s]+)" % d
-            i > 0 ? d + s : s
-        end
-      end
-    end
-
-    rrr = rr.take(2**main_fields).map {|x| x + [a[-1] + '(.*)']} + rr
-    
-  end
 
   def load_find_by(schema)  
     a = PolyrexObjectMethods.new(schema).to_a
