@@ -11,6 +11,7 @@ require 'recordx-xslt'
 require 'rexle'
 require 'recordx'
 require 'rxraw-lineparser'
+require 'yaml'
 
 module Enumerable
   def repeated_permutation(size, &blk)
@@ -31,6 +32,7 @@ module Enumerable
     end
   end
 end
+
 
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, :schema
@@ -231,7 +233,7 @@ class Polyrex
 
     @summary.format_mask = @format_masks
 
-    format_line!(@parent_node.root, LineTree.new(raw_lines.join("\n").strip).to_a)
+    format_line!(@parent_node.element('summary'), @parent_node.root, LineTree.new(raw_lines.join("\n").strip).to_a)
 
   end  
 
@@ -246,7 +248,7 @@ class Polyrex
     attach_edit_handlers(@objects)    
   end
   
-  def format_line!(records, a, i=0)
+  def format_line!(summary, records, a, i=0)
 
     a.each do |x|    
 
@@ -257,6 +259,16 @@ class Polyrex
 
       tag_name = @recordx[i].to_s
       line = x.shift
+
+      if line[/\w+\s*---/] then
+
+        yaml = YAML.load x.join("\n")
+        node_name = line.sub(/\s*---/,'')
+        ynode = Rexle::Element.new(node_name).add_text("---\n" + x.join("\n"))
+        
+        summary.add ynode
+        next
+      end
       
       unless @format_masks[i][/^\(.*\)$/] then
         
@@ -299,7 +311,7 @@ class Polyrex
       record.add new_records
       records.add record
       
-      format_line!(new_records, x, i+1) unless x.empty?
+      format_line!(summary, new_records, x, i+1) unless x.empty?
     end
   end
   
