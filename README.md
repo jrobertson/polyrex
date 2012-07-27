@@ -1,18 +1,34 @@
-# Introducing the Polyrex gem
+#Using Polyrex with embedded YAML
 
-    require 'polyrex' 
+    require 'polyrex'
 
-    polyrex = Polyrex.new 'entities/section[name]/entity[name,count]' 
-    polyrex.create.section(name: 'main') do |create|  
-      create.entity name: 'entry', count: 1 
-    end
-
-    polyrex.create.section(name: 'tags') do |create|
-      create.entity name: 'ruby', count: 1 
-      create.entity name: 'rexml', count: 1 
-      create.entity name: 'array', count: 1 
-    end
+    polyrex = Polyrex.new
+    polyrex.parse File.read('/tmp/px220712T1426.txt')
     puts polyrex.to_xml pretty: true
 
-    (polyrex.public_methods - Object.public_methods).sort
-    #=> [:create, :create_entity, :create_section, :delete, :element, :entity, :find_by_entity_count, :find_by_entity_name, :find_by_id, :find_by_section_name, :format_masks, :id, :id_counter, :id_counter=, :parse, :record, :records, :save, :schema, :schema=, :section, :summary, :summary_fields, :summary_fields=, :to_a, :to_xml, :to_xslt, :xpath, :xslt_schema, :xslt_schema=]
+    polyrex.records[0].commands
+    #=> [{"s1"=>"rvm", "s2"=>"sudo rvm"}, {"s1"=>"rvm2", "s2"=>"sudo rvm2"}]
+
+    polyrex.find_by_machine_title('toni').storage
+    #=> ["/", "/media/usb1"]
+
+file px220712T1426.txt:
+
+    <?polyrex schema="entries[title,tags,desc]/machine[title]"?>
+    title: Machines used for remote SSH commands
+    tags: ssh remote machine
+    desc: s1 is substituted with s2
+
+    amadora
+      commands ---
+        - {s1: rvm, s2: sudo rvm}  
+        - {s1: rvm2, s2: sudo rvm2}      
+    lucia
+    toni
+      commands ---
+        - {s1: rvm, s2: /home/james/.rvm/bin/rvm}
+      storage ---
+        [/, /media/usb1]
+    niko
+      commands ---
+        - {s1: rvm, s2: /home/james/.rvm/bin/rvm}
