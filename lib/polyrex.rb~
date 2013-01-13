@@ -162,7 +162,7 @@ class Polyrex
 
   def polyrex_new(schema)
     # -- required for the parsing feature
-    doc = Rexle.new(PolyrexSchema.new(schema).to_s)
+    doc = PolyrexSchema.new(schema).to_doc
     @format_masks = doc.root.xpath('//format_mask/text()')
 
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
@@ -262,7 +262,6 @@ class Polyrex
 
       if line[/\w+\s*---/] then
 
-        yaml = YAML.load x.join("\n")
         node_name = line.sub(/\s*---/,'')
         ynode = Rexle::Element.new(node_name).add_text("---\n" + x.join("\n"))
         

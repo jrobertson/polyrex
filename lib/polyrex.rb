@@ -35,7 +35,7 @@ end
 
 
 class Polyrex
-  attr_accessor :summary_fields, :xslt_schema, :id_counter, :schema
+  attr_accessor :summary_fields, :xslt_schema, :id_counter, :schema, :type
 
   def initialize(location=nil, id_counter='1')
 
@@ -231,6 +231,13 @@ class Polyrex
 
     end
 
+    if @type == 'checklist' then
+      
+      @format_masks.each do |fm|
+        fm.sub!(/\s(\[[^\[]+\]$)/,'999999999\1')
+      end
+    end
+    
     @summary.format_mask = @format_masks
 
     format_line!(@parent_node.element('summary'), @parent_node.root, LineTree.new(raw_lines.join("\n").strip).to_a)
@@ -250,7 +257,7 @@ class Polyrex
   
   def format_line!(summary, records, a, i=0)
 
-    a.each do |x|    
+    a.each do |x|          
 
       unless @recordx[i] then
         @recordx[i] = @recordx[-1].clone
@@ -258,8 +265,22 @@ class Polyrex
       end
 
       tag_name = @recordx[i].to_s
-      line = x.shift
+      line = raw_line = x.shift
 
+      if @type == 'checklist' then
+
+        raw_checked, line = raw_line.partition(/\]/).values_at 0,2
+        
+        if raw_checked.lstrip[/^\[/] then
+          checkmark = raw_checked[/x/] ? true : false
+        else
+          checkmark = nil
+          line = raw_line
+        end        
+      else
+        line = raw_line
+      end
+      
       if line[/\w+\s*---/] then
 
         node_name = line.sub(/\s*---/,'')
@@ -284,7 +305,7 @@ class Polyrex
         i = patterns.index(pattern)
         
         @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
-        
+
         field_values = line.match(/#{pattern}/).captures        
         
       end
@@ -296,13 +317,21 @@ class Polyrex
       record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
       
+      if @type == 'checklist' then
+        field_values[-1] = checkmark.to_s unless checkmark.nil?
+      end
+      
       @field_names.zip(field_values).each do |name, value|  
         field =  Rexle::Element.new(name.to_s)
         field.text = value        
         summary.add field
       end
 
-      summary.add Rexle::Element.new('format_mask').add_text(@format_masks[i])
+      format_mask = @format_masks[i]
+      if @type == 'checklist' then
+        format_mask = format_mask.sub(/999999999/,' ')
+      end
+      summary.add Rexle::Element.new('format_mask').add_text(format_mask)
       
       new_records = Rexle::Element.new('records')
 
