@@ -233,7 +233,7 @@ class Polyrex
 
     if @type == 'checklist' then
       
-      @format_masks.each do |fm|
+      @format_masks[1..-1].each do |fm|
         fm.sub!(/\s(\[[^\[]+\]$)/,'999999999\1')
       end
     end
