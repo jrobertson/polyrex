@@ -2,6 +2,7 @@
 
 # file: polyrex.rb
 
+require 'open-uri'
 require 'polyrex-schema'
 require 'line-tree'
 require 'polyrex-objects'
