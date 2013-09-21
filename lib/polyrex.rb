@@ -107,12 +107,14 @@ class Polyrex
     @format_masks
   end 
   
-  def parse(buffer='')
+  def parse(buffer='', options={})
     buffer = yield if block_given?          
-    string_parse buffer
+    string_parse buffer, options
     self
   end    
   
+  alias import parse
+
   def element(s)
     @doc.root.element(s)
   end
@@ -124,7 +126,7 @@ class Polyrex
   end
 
   def schema=(s)
-    open s
+    open(s)
     summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     #@summary = OpenStruct.new summary_h
     @summary = RecordX.new summary_h
@@ -206,20 +208,33 @@ class Polyrex
     [fields, a]
   end
   
-  def string_parse(buffer)
+  def string_parse(buffer, options={})
 
     raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
     
     if raw_header then
       header = raw_header[/<?polyrex (.*)?>/,1]
-      header.scan(/\w+\=["'][^"']+["']/).map{|x| r = x.split(/=/); \
-             [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]] }.each do |name, value|
-                        self.method(name).call(value)
-              end
+      a = header.scan(/\w+\=["'][^"']+["']/).map do |x| 
+        r = x.split(/=/)
+        [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]]
+      end
+
+      if options[:schema] then
+        a.delete a.assoc(:schema)
+        self.method(:schema=).call(options[:schema])
+      end
+
+      a.each do |name, value|
+        unless options.keys.include? name[0..-2].to_sym then
+          self.method(name).call(value) 
+        end
+      end
     end
 
-    raw_summary = schema[/^\w+\[([^\]]+)/,1]
+    
     raw_lines = buffer.strip.split(/\r?\n|\r(?!\n)/)    
+
+    raw_summary = schema[/^\w+\[([^\]]+)/,1]
 
     if raw_summary then
       a_summary = raw_summary.split(',').map(&:strip)
@@ -386,8 +401,8 @@ class Polyrex
 
     @doc = Rexle.new buffer
 
-    schema = @doc.root.text('summary/schema')
-    
+    schema = @schema ? @schema : @doc.root.text('summary/schema')
+
     unless @format_masks
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
       @recordx = schema_rpath.split('/')
