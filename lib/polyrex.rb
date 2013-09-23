@@ -2,17 +2,18 @@
 
 # file: polyrex.rb
 
-require 'open-uri'
+#require 'open-uri'
 require 'polyrex-schema'
-require 'line-tree'
+#require 'line-tree'
 require 'polyrex-objects'
 require 'polyrex-createobject'
 require 'polyrex-object-methods'
 require 'recordx-xslt'
-require 'rexle'
-require 'recordx'
-require 'rxraw-lineparser'
-require 'yaml'
+#require 'rexle'
+#require 'recordx'
+#require 'rxraw-lineparser'
+#require 'yaml'
+require 'dynarex'
 
 module Enumerable
   def repeated_permutation(size, &blk)
