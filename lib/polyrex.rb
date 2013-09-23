@@ -62,8 +62,13 @@ class Polyrex
     @create
   end
 
-  def delete(id=nil)
-    @doc.root.delete("//[@id='#{id}'")
+  def delete(x=nil)
+
+    if x.to_i.to_s  == x.to_s then
+      @doc.root.delete("//[@id='#{x}'")
+    else
+      @doc.root.xpath(x).each(&:delete)
+    end
   end
   
   def delimiter=(separator)
@@ -143,6 +148,47 @@ class Polyrex
     recordx_map @doc.root
   end
   
+  def to_dynarex()
+    root = @doc.root.deep_clone
+
+    summary = root.element('summary')
+    e = summary.element('schema')
+    e.text = e.text[/[^\/]+\/[^\/]+/].sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
+    summary.delete('format_mask')
+    summary.element('recordx_type').text = 'dynarex'
+
+    summary.add root.element('records/*/summary/format_mask').clone
+    root.xpath('records/*/summary/format_mask').each(&:delete)
+
+xsl_buffer =<<EOF
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+<xsl:output encoding="UTF-8"
+            indent="yes"
+            omit-xml-declaration="yes"/>
+
+  <xsl:template match="*">
+    <xsl:element name="{name()}">
+    <xsl:element name="summary">
+      <xsl:for-each select="summary/*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+    </xsl:element>
+    <xsl:element name="records">
+      <xsl:for-each select="records/*">
+        <xsl:element name="{name()}">
+          <xsl:copy-of select="summary/*"/>
+        </xsl:element>
+      </xsl:for-each>
+    </xsl:element>
+    </xsl:element>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+    xslt  = Nokogiri::XSLT(xsl_buffer)
+    Dynarex.new xslt.transform(Nokogiri::XML(root.xml)).to_s
+
+  end
+
   def to_xslt()    
     @polyrex_xslt.schema = @schema
     @polyrex_xslt.to_xslt
