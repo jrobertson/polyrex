@@ -39,12 +39,21 @@ end
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, :schema, :type
 
-  def initialize(location=nil, id_counter='1')
+  def initialize(location=nil, opt={})
 
-    @id_counter = id_counter
+    options = {id_counter: '1'}.merge opt
+    @id_counter = options[:id_counter]
     
     if location then
+      self.method(:schema=).call(options[:schema]) if options[:schema]
       open(location)
+
+      if options[:schema] then
+        fields = @schema[/\/.*/].scan(/\[([^\]]+)/).map \
+          {|x| x.first.split(',').map(&:strip)}
+        refresh_records self.records, fields, 0
+      end
+
       summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
       #@summary = OpenStruct.new summary_h
       @summary = RecordX.new summary_h
@@ -185,7 +194,8 @@ xsl_buffer =<<EOF
 </xsl:stylesheet>
 EOF
     xslt  = Nokogiri::XSLT(xsl_buffer)
-    Dynarex.new xslt.transform(Nokogiri::XML(root.xml)).to_s
+    buffer = xslt.transform(Nokogiri::XML(root.xml)).to_s
+    Dynarex.new buffer
 
   end
 
@@ -209,6 +219,20 @@ EOF
   end
 
   private
+
+  def refresh_records(records, fields, level)
+
+    records.each do |record|
+
+      level -= 1 unless fields[level]
+      fields[level].each {|x| record.method(x).call }
+
+      if record.records.any? then
+        refresh_records record.records, fields, level+1
+      end
+    end
+
+  end
 
   def polyrex_new(schema)
     # -- required for the parsing feature
@@ -446,10 +470,12 @@ EOF
       @local_filepath = s
     end
 
+    buffer.gsub!(/<schema>[^<]+/, '<schema>' + @schema) if @schema
+
     @doc = Rexle.new buffer
 
-    schema = @schema ? @schema : @doc.root.text('summary/schema')
-
+    schema = @doc.root.text('summary/schema')
+    
     unless @format_masks
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
       @recordx = schema_rpath.split('/')
