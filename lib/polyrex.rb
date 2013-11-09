@@ -326,8 +326,10 @@ EOF
     end
     
     @summary.format_mask = @format_masks
-
-    format_line!(@parent_node.element('summary'), @parent_node.root, LineTree.new(raw_lines.join("\n").strip).to_a)
+    records = @parent_node.root
+    @parent_node = records.parent
+    records.delete
+    @parent_node.root.add format_line!( LineTree.new(raw_lines.join("\n").strip).to_a)
 
   end  
 
@@ -342,7 +344,9 @@ EOF
     attach_edit_handlers(@objects)    
   end
   
-  def format_line!(summary, records, a, i=0)
+  def format_line!(a, i=0)
+
+    records = Rexle::Element.new('records')
 
     a.each do |x|          
 
@@ -376,13 +380,14 @@ EOF
         summary.add ynode
         next
       end
-      
+
       unless @format_masks[i][/^\(.*\)$/] then
-        
-        @field_names, field_values = RXRawLineParser.new(format_masks[i]).parse(line)
+
+        @field_names, field_values = RXRawLineParser.new(format_masks[i])\
+                                                            .parse(line)
         
       else
-        
+
         format_masks = @format_masks[i][1..-2].split('|')
         patterns = format_masks.map do |x|
           regexify_fmask(x) #.sub(/\[/,'\[').sub(/\]/,'\]')
@@ -391,7 +396,8 @@ EOF
         pattern = patterns.detect {|x| line.match(/#{x}/)}
         i = patterns.index(pattern)
         
-        @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
+        @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/)\
+                                              .flatten.map(&:to_sym)
 
         field_values = line.match(/#{pattern}/).captures        
         
@@ -415,19 +421,21 @@ EOF
       end
 
       format_mask = @format_masks[i]
+
       if @type == 'checklist' then
         format_mask = format_mask.sub(/999999999/,' ')
       end
+
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
       
-      new_records = Rexle::Element.new('records')
-
       record.add summary
-      record.add new_records
+      child_records = format_line!(x, i+1) unless x.empty?
+
+      record.add child_records
       records.add record
-      
-      format_line!(summary, new_records, x, i+1) unless x.empty?
     end
+
+    records
   end
   
   # -- end of full text edit methods
