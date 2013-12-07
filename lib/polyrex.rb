@@ -429,7 +429,7 @@ EOF
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
       
       record.add summary
-      child_records = format_line!(x, i+1) unless x.empty?
+      child_records = format_line!(x, i+1) #jr071213 unless x.empty?
 
       record.add child_records
       records.add record
