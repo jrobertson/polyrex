@@ -63,6 +63,10 @@ class Polyrex
     @polyrex_xslt = RecordxXSLT.new
   end
 
+  def content(options={})
+    CGI.unescapeHTML(to_xml(options))
+  end
+
   def create(id=nil)
       # @create is a PolyrexCreateObject, @parent_node is a Rexle::Element pointing to the current record
     
