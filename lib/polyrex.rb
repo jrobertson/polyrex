@@ -43,6 +43,7 @@ class Polyrex
 
     options = {id_counter: '1'}.merge opt
     @id_counter = options[:id_counter]
+    @format_masks = []
     
     if location then
       self.method(:schema=).call(options[:schema]) if options[:schema]
