@@ -86,6 +86,7 @@ class Polyrex
   end
   
   def delimiter=(separator)
+
     @format_masks.map! do |format_mask|
       format_mask.to_s.gsub(/\s/, separator)
     end
@@ -128,6 +129,7 @@ class Polyrex
   end 
   
   def parse(buffer='', options={})
+
     buffer = yield if block_given?          
     string_parse buffer, options
     self
@@ -146,9 +148,11 @@ class Polyrex
   end
 
   def schema=(s)
+
     open(s)
     summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     #@summary = OpenStruct.new summary_h
+
     @summary = RecordX.new summary_h
     @summary_fields = summary_h.keys.map(&:to_sym)    
     self
@@ -240,9 +244,11 @@ EOF
   end
 
   def polyrex_new(schema)
+
     # -- required for the parsing feature
     doc = PolyrexSchema.new(schema).to_doc
-    @format_masks = doc.root.xpath('//format_mask/text()')
+    fm = doc.root.xpath('//format_mask/text()')
+    @format_masks = fm.zip(@format_masks).map{|x,y| y || x }
 
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
 
@@ -307,7 +313,6 @@ EOF
       end
     end
 
-    
     raw_lines = buffer.strip.split(/\r?\n|\r(?!\n)/)    
 
     raw_summary = schema[/^\w+\[([^\]]+)/,1]
@@ -331,6 +336,7 @@ EOF
     end
     
     @summary.format_mask = @format_masks
+
     records = @parent_node.root
     @parent_node = records.parent
     records.delete
