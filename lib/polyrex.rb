@@ -64,6 +64,10 @@ class Polyrex
     @polyrex_xslt = RecordxXSLT.new
   end
 
+  def add(pxobj)
+    self.record.add pxobj.node
+  end
+
   def content(options={})
     CGI.unescapeHTML(to_xml(options))
   end
