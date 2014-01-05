@@ -47,7 +47,7 @@ class Polyrex
     
     if location then
       self.method(:schema=).call(options[:schema]) if options[:schema]
-      open(location)
+      openx(location)
 
       if options[:schema] then
         fields = @schema[/\/.*/].scan(/\[([^\]]+)/).map \
@@ -153,7 +153,7 @@ class Polyrex
 
   def schema=(s)
 
-    open(s)
+    openx(s)
     summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     #@summary = OpenStruct.new summary_h
 
@@ -480,14 +480,14 @@ EOF
     
   end
   
-  def open(s)
+  def openx(s)
 
     if s[/</] # xml
       buffer = s
     elsif s[/\[/] then  # schema
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
-      buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
+      buffer = open(s, 'UserAgent' => 'Polyrex-Reader'){|x| x.read}
     else # local file
       buffer = File.open(s,'r').read
       @local_filepath = s
