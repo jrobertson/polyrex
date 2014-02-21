@@ -37,13 +37,15 @@ end
 
 
 class Polyrex
-  attr_accessor :summary_fields, :xslt_schema, :id_counter, :schema, :type
+  attr_accessor :summary_fields, :xslt_schema, :id_counter, 
+                :schema, :type, :delimiter
 
   def initialize(location=nil, opt={})
 
     options = {id_counter: '1'}.merge opt
     @id_counter = options[:id_counter]
     @format_masks = []
+    @delimiter = '' 
     
     if location then
       self.method(:schema=).call(options[:schema]) if options[:schema]
@@ -90,6 +92,8 @@ class Polyrex
   end
   
   def delimiter=(separator)
+
+    @delimiter = separator
 
     @format_masks.map! do |format_mask|
       format_mask.to_s.gsub(/\s/, separator)
@@ -212,6 +216,53 @@ EOF
 
   end
 
+  def to_s()
+
+    def build(records, indent=0)
+
+      records.map do |item|
+
+        summary = item.element 'summary'
+        format_mask = summary.text 'format_mask'
+        line = format_mask.gsub(/\[![^\]]+\]/){|x| summary.text x[2..-2]}
+
+        records = item.element('records').elements.to_a
+        line = line + "\n" + build(records, indent + 1).join("\n") if records.length > 0
+        ('  ' * indent) + line
+      end
+    end
+
+    sumry = ''
+
+
+    summary_fields = self.summary.to_h.keys
+
+    %w(recordx_type schema format_mask).each {|x| summary_fields.delete x}
+    sumry = summary_fields.map {|x| x + ': ' + \
+                       self.summary.method(x.to_sym).call}.join("\n") + "\n"
+
+
+    if @raw_header then
+      declaration = @raw_header
+    else
+
+      smry_fields = %i(schema)              
+      if self.delimiter.length > 0 then
+        smry_fields << :delimiter 
+      else
+        smry_fields << :format_mask
+      end
+      s = smry_fields.map {|x| "%s=\"%s\"" % \
+        [x, self.summary.send(x).gsub('"', '\"') ]}.join ' '
+
+      declaration = %Q(<?polyrex %s?>\n) % s
+    end
+
+    header = declaration + sumry
+    out = build(self.records).join("\n")
+    header + "\n" + out
+  end
+
   def to_xslt()    
     @polyrex_xslt.schema = @schema
     @polyrex_xslt.to_xslt
@@ -296,10 +347,10 @@ EOF
   
   def string_parse(buffer, options={})
 
-    raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
+    @raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
     
-    if raw_header then
-      header = raw_header[/<?polyrex (.*)?>/,1]
+    if @raw_header then
+      header = @raw_header[/<?polyrex (.*)?>/,1]
       a = header.scan(/\w+\=["'][^"']+["']/).map do |x| 
         r = x.split(/=/)
         [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]]
