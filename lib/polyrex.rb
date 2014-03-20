@@ -122,6 +122,7 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = @doc.root.element("//[@id='#{id}']")
+    @objects[@parent_node.name].new(@parent_node, @id)
   end
 
   def id(id)
@@ -403,7 +404,7 @@ EOF
     @create = PolyrexCreateObject.new(schema, @id_counter)
 
     objects = PolyrexObjects.new(schema, @id_counter)    
-    @objects = objects.to_h
+    @objects = objects.to_h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
     @objects_a = objects.to_a
 
     attach_create_handlers(@objects.keys)
