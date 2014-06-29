@@ -493,7 +493,10 @@ EOF
         format_mask = format_mask.sub(/999999999/,' ')
       end
 
+      schema = "%s[%s]" % [tag_name, @field_names.join(', ')]
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
+      summary.add Rexle::Element.new('schema').add_text(schema)
+      summary.add Rexle::Element.new('recordx_type').add_text('polyrex')
       
       record.add summary
       child_records = format_line!(x, i+1) #jr071213 unless x.empty?

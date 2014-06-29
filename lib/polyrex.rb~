@@ -2,16 +2,18 @@
 
 # file: polyrex.rb
 
+#require 'open-uri'
 require 'polyrex-schema'
-require 'line-tree'
+#require 'line-tree'
 require 'polyrex-objects'
 require 'polyrex-createobject'
 require 'polyrex-object-methods'
 require 'recordx-xslt'
-require 'rexle'
-require 'recordx'
-require 'rxraw-lineparser'
-require 'yaml'
+#require 'rexle'
+#require 'recordx'
+#require 'rxraw-lineparser'
+#require 'yaml'
+require 'dynarex'
 
 module Enumerable
   def repeated_permutation(size, &blk)
@@ -35,14 +37,26 @@ end
 
 
 class Polyrex
-  attr_accessor :summary_fields, :xslt_schema, :id_counter, :schema, :type
+  attr_accessor :summary_fields, :xslt_schema, :id_counter, 
+                :schema, :type, :delimiter
 
-  def initialize(location=nil, id_counter='1')
+  def initialize(location=nil, opt={})
 
-    @id_counter = id_counter
+    options = {id_counter: '1'}.merge opt
+    @id_counter = options[:id_counter]
+    @format_masks = []
+    @delimiter = '' 
     
     if location then
-      open(location)
+      self.method(:schema=).call(options[:schema]) if options[:schema]
+      openx(location)
+
+      if options[:schema] then
+        fields = @schema[/\/.*/].scan(/\[([^\]]+)/).map \
+          {|x| x.first.split(',').map(&:strip)}
+        refresh_records self.records, fields, 0
+      end
+
       summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
       #@summary = OpenStruct.new summary_h
       @summary = RecordX.new summary_h
@@ -50,6 +64,14 @@ class Polyrex
     end
     
     @polyrex_xslt = RecordxXSLT.new
+  end
+
+  def add(pxobj)
+    self.record.add pxobj.node
+  end
+
+  def content(options={})
+    CGI.unescapeHTML(to_xml(options))
   end
 
   def create(id=nil)
@@ -60,11 +82,19 @@ class Polyrex
     @create
   end
 
-  def delete(id=nil)
-    @doc.root.delete("//[@id='#{id}'")
+  def delete(x=nil)
+
+    if x.to_i.to_s  == x.to_s then
+      @doc.root.delete("//[@id='#{x}'")
+    else
+      @doc.root.xpath(x).each(&:delete)
+    end
   end
   
   def delimiter=(separator)
+
+    @delimiter = separator
+
     @format_masks.map! do |format_mask|
       format_mask.to_s.gsub(/\s/, separator)
     end
@@ -92,6 +122,7 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = @doc.root.element("//[@id='#{id}']")
+    @objects[@parent_node.name].new(@parent_node, @id)
   end
 
   def id(id)
@@ -106,12 +137,15 @@ class Polyrex
     @format_masks
   end 
   
-  def parse(buffer='')
+  def parse(buffer='', options={})
+
     buffer = yield if block_given?          
-    string_parse buffer
+    string_parse buffer, options
     self
   end    
   
+  alias import parse
+
   def element(s)
     @doc.root.element(s)
   end
@@ -123,9 +157,11 @@ class Polyrex
   end
 
   def schema=(s)
-    open s
+
+    openx(s)
     summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
     #@summary = OpenStruct.new summary_h
+
     @summary = RecordX.new summary_h
     @summary_fields = summary_h.keys.map(&:to_sym)    
     self
@@ -139,6 +175,95 @@ class Polyrex
     recordx_map @doc.root
   end
   
+  def to_dynarex()
+    root = @doc.root.deep_clone
+
+    summary = root.element('summary')
+    e = summary.element('schema')
+    e.text = e.text[/[^\/]+\/[^\/]+/].sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
+    summary.delete('format_mask')
+    summary.element('recordx_type').text = 'dynarex'
+
+    summary.add root.element('records/*/summary/format_mask').clone
+    root.xpath('records/*/summary/format_mask').each(&:delete)
+
+xsl_buffer =<<EOF
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+<xsl:output encoding="UTF-8"
+            indent="yes"
+            omit-xml-declaration="yes"/>
+
+  <xsl:template match="*">
+    <xsl:element name="{name()}">
+    <xsl:element name="summary">
+      <xsl:for-each select="summary/*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+    </xsl:element>
+    <xsl:element name="records">
+      <xsl:for-each select="records/*">
+        <xsl:element name="{name()}">
+          <xsl:copy-of select="summary/*"/>
+        </xsl:element>
+      </xsl:for-each>
+    </xsl:element>
+    </xsl:element>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+    xslt  = Nokogiri::XSLT(xsl_buffer)
+    buffer = xslt.transform(Nokogiri::XML(root.xml)).to_s
+    Dynarex.new buffer
+
+  end
+
+  def to_s()
+
+    def build(records, indent=0)
+
+      records.map do |item|
+
+        summary = item.element 'summary'
+        format_mask = summary.text 'format_mask'
+        line = format_mask.gsub(/\[![^\]]+\]/){|x| summary.text x[2..-2]}
+
+        records = item.element('records').elements.to_a
+        line = line + "\n" + build(records, indent + 1).join("\n") if records.length > 0
+        ('  ' * indent) + line
+      end
+    end
+
+    sumry = ''
+
+
+    summary_fields = self.summary.to_h.keys
+
+    %w(recordx_type schema format_mask).each {|x| summary_fields.delete x}
+    sumry = summary_fields.map {|x| x + ': ' + \
+                       self.summary.method(x.to_sym).call}.join("\n") + "\n"
+
+
+    if @raw_header then
+      declaration = @raw_header
+    else
+
+      smry_fields = %i(schema)              
+      if self.delimiter.length > 0 then
+        smry_fields << :delimiter 
+      else
+        smry_fields << :format_mask
+      end
+      s = smry_fields.map {|x| "%s=\"%s\"" % \
+        [x, self.summary.send(x).gsub('"', '\"') ]}.join ' '
+
+      declaration = %Q(<?polyrex %s?>\n) % s
+    end
+
+    header = declaration + sumry
+    out = build(self.records).join("\n")
+    header + "\n" + out
+  end
+
   def to_xslt()    
     @polyrex_xslt.schema = @schema
     @polyrex_xslt.to_xslt
@@ -160,10 +285,26 @@ class Polyrex
 
   private
 
+  def refresh_records(records, fields, level)
+
+    records.each do |record|
+
+      level -= 1 unless fields[level]
+      fields[level].each {|x| record.method(x).call }
+
+      if record.records.any? then
+        refresh_records record.records, fields, level+1
+      end
+    end
+
+  end
+
   def polyrex_new(schema)
+
     # -- required for the parsing feature
     doc = PolyrexSchema.new(schema).to_doc
-    @format_masks = doc.root.xpath('//format_mask/text()')
+    fm = doc.root.xpath('//format_mask/text()')
+    @format_masks = fm.zip(@format_masks).map{|x,y| y || x }
 
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
 
@@ -205,20 +346,32 @@ class Polyrex
     [fields, a]
   end
   
-  def string_parse(buffer)
+  def string_parse(buffer, options={})
 
-    raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
+    @raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
     
-    if raw_header then
-      header = raw_header[/<?polyrex (.*)?>/,1]
-      header.scan(/\w+\=["'][^"']+["']/).map{|x| r = x.split(/=/); \
-             [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]] }.each do |name, value|
-                        self.method(name).call(value)
-              end
+    if @raw_header then
+      header = @raw_header[/<?polyrex (.*)?>/,1]
+      a = header.scan(/\w+\=["'][^"']+["']/).map do |x| 
+        r = x.split(/=/)
+        [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]]
+      end
+
+      if options[:schema] then
+        a.delete a.assoc(:schema)
+        self.method(:schema=).call(options[:schema])
+      end
+
+      a.each do |name, value|
+        unless options.keys.include? name[0..-2].to_sym then
+          self.method(name).call(value) 
+        end
+      end
     end
 
-    raw_summary = schema[/^\w+\[([^\]]+)/,1]
     raw_lines = buffer.strip.split(/\r?\n|\r(?!\n)/)    
+
+    raw_summary = schema[/^\w+\[([^\]]+)/,1]
 
     if raw_summary then
       a_summary = raw_summary.split(',').map(&:strip)
@@ -240,7 +393,10 @@ class Polyrex
     
     @summary.format_mask = @format_masks
 
-    format_line!(@parent_node.element('summary'), @parent_node.root, LineTree.new(raw_lines.join("\n").strip).to_a)
+    records = @parent_node.root
+    @parent_node = records.parent
+    records.delete
+    @parent_node.root.add format_line!( LineTree.new(raw_lines.join("\n").strip).to_a)
 
   end  
 
@@ -248,14 +404,16 @@ class Polyrex
     @create = PolyrexCreateObject.new(schema, @id_counter)
 
     objects = PolyrexObjects.new(schema, @id_counter)    
-    @objects = objects.to_h
+    @objects = objects.to_h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
     @objects_a = objects.to_a
 
     attach_create_handlers(@objects.keys)
     attach_edit_handlers(@objects)    
   end
   
-  def format_line!(summary, records, a, i=0)
+  def format_line!(a, i=0)
+
+    records = Rexle::Element.new('records')
 
     a.each do |x|          
 
@@ -289,13 +447,14 @@ class Polyrex
         summary.add ynode
         next
       end
-      
+
       unless @format_masks[i][/^\(.*\)$/] then
-        
-        @field_names, field_values = RXRawLineParser.new(format_masks[i]).parse(line)
+
+        @field_names, field_values = RXRawLineParser.new(format_masks[i])\
+                                                            .parse(line)
         
       else
-        
+
         format_masks = @format_masks[i][1..-2].split('|')
         patterns = format_masks.map do |x|
           regexify_fmask(x) #.sub(/\[/,'\[').sub(/\]/,'\]')
@@ -304,7 +463,8 @@ class Polyrex
         pattern = patterns.detect {|x| line.match(/#{x}/)}
         i = patterns.index(pattern)
         
-        @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)        
+        @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/)\
+                                              .flatten.map(&:to_sym)
 
         field_values = line.match(/#{pattern}/).captures        
         
@@ -328,19 +488,21 @@ class Polyrex
       end
 
       format_mask = @format_masks[i]
+
       if @type == 'checklist' then
         format_mask = format_mask.sub(/999999999/,' ')
       end
+
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
       
-      new_records = Rexle::Element.new('records')
-
       record.add summary
-      record.add new_records
+      child_records = format_line!(x, i+1) #jr071213 unless x.empty?
+
+      record.add child_records
       records.add record
-      
-      format_line!(summary, new_records, x, i+1) unless x.empty?
     end
+
+    records
   end
   
   # -- end of full text edit methods
@@ -370,18 +532,20 @@ class Polyrex
     
   end
   
-  def open(s)
+  def openx(s)
 
     if s[/</] # xml
       buffer = s
     elsif s[/\[/] then  # schema
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
-      buffer = Kernel.open(s, 'UserAgent' => 'Polyrex-Reader').read
+      buffer = open(s, 'UserAgent' => 'Polyrex-Reader'){|x| x.read}
     else # local file
       buffer = File.open(s,'r').read
       @local_filepath = s
     end
+
+    buffer.gsub!(/<schema>[^<]+/, '<schema>' + @schema) if @schema
 
     @doc = Rexle.new buffer
 
