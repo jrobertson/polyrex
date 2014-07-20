@@ -38,7 +38,7 @@ end
 
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
-                :schema, :type, :delimiter, :format_mask
+                :schema, :type, :delimiter
 
   def initialize(location=nil, opt={})
 
@@ -48,17 +48,23 @@ class Polyrex
     @delimiter = '' 
     
     if location then
+
       self.method(:schema=).call(options[:schema]) if options[:schema]
+
       openx(location)
 
       if options[:schema] then
+
         fields = @schema[/\/.*/].scan(/\[([^\]]+)/).map \
           {|x| x.first.split(',').map(&:strip)}
         refresh_records self.records, fields, 0
+
       end
+
 
       summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
       #@summary = OpenStruct.new summary_h
+
       @summary = RecordX.new summary_h
       @summary_fields = summary_h.keys.map(&:to_sym)
     end
@@ -303,13 +309,14 @@ EOF
 
     # -- required for the parsing feature
     doc = PolyrexSchema.new(schema).to_doc
+
     fm = doc.root.xpath('//format_mask/text()')
     @format_masks = fm.zip(@format_masks).map{|x,y| y || x }
 
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
 
     @recordx = schema_rpath.split('/')
-    
+
     summary = ''
     if @format_masks.length == @recordx.length then
       root_format_mask = @format_masks.shift
@@ -324,8 +331,8 @@ EOF
     @id_counter = '0'
 
     root_name = @recordx.shift
-
     ("<%s><summary>%s</summary><records/></%s>" % [root_name, (summary || '') , root_name])
+
   end
   
   def recordx_map(node)
@@ -401,9 +408,10 @@ EOF
   end  
 
   def load_handlers(schema)
-    @create = PolyrexCreateObject.new(schema, @id_counter)
 
+    @create = PolyrexCreateObject.new(schema, @id_counter)
     objects = PolyrexObjects.new(schema, @id_counter)    
+
     @objects = objects.to_h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
     @objects_a = objects.to_a
 
@@ -528,7 +536,7 @@ EOF
     self.instance_eval(
 %Q(
   def #{name.downcase}()     
-    @objects['#{name}'].new(@parent_node, @id)
+    @objects['#{name}'].new(@parent_node.element('.'), @id)
   end
 ))
     end
@@ -553,13 +561,13 @@ EOF
     @doc = Rexle.new buffer
 
     schema = @doc.root.text('summary/schema')
-    
+
     unless @format_masks
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
       @recordx = schema_rpath.split('/')
       @recordx.shift
     end
-    
+
     id = @doc.root.xpath('max(//@id)')
     @id_counter = id.to_s.succ if id
     

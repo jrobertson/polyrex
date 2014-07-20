@@ -38,7 +38,7 @@ end
 
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
-                :schema, :type, :delimiter
+                :schema, :type, :delimiter, :format_mask
 
   def initialize(location=nil, opt={})
 
@@ -140,7 +140,7 @@ class Polyrex
   def parse(buffer='', options={})
 
     buffer = yield if block_given?          
-    string_parse buffer, options
+    string_parse buffer.clone, options
     self
   end    
   
