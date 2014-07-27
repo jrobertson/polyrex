@@ -43,6 +43,7 @@ class Polyrex
   def initialize(location=nil, opt={})
 
     options = {id_counter: '1'}.merge opt
+
     @id_counter = options[:id_counter]
     @format_masks = []
     @delimiter = '' 
@@ -80,7 +81,7 @@ class Polyrex
     CGI.unescapeHTML(to_xml(options))
   end
 
-  def create(id=nil)
+  def create(id: nil)
       # @create is a PolyrexCreateObject, @parent_node is a Rexle::Element pointing to the current record
     
     @create.id = id || @id_counter
@@ -128,7 +129,7 @@ class Polyrex
 
   def find_by_id(id)
     @parent_node = @doc.root.element("//[@id='#{id}']")
-    @objects[@parent_node.name].new(@parent_node, @id)
+    @objects[@parent_node.name].new(@parent_node, id: @id)
   end
 
   def id(id)
@@ -409,8 +410,8 @@ EOF
 
   def load_handlers(schema)
 
-    @create = PolyrexCreateObject.new(schema, @id_counter)
-    objects = PolyrexObjects.new(schema, @id_counter)    
+    @create = PolyrexCreateObject.new(schema, id: @id_counter)
+    objects = PolyrexObjects.new(schema)    
 
     @objects = objects.to_h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
     @objects_a = objects.to_a
@@ -536,7 +537,7 @@ EOF
     self.instance_eval(
 %Q(
   def #{name.downcase}()     
-    @objects['#{name}'].new(@parent_node.element('.'), @id)
+    @objects['#{name}'].new(@parent_node.element('.'), id: @id)
   end
 ))
     end
