@@ -413,11 +413,15 @@ EOF
     @create = PolyrexCreateObject.new(schema, id: @id_counter)
     objects = PolyrexObjects.new(schema)    
 
-    @objects = objects.to_h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
+    h = objects.to_h
+
+    @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
+
     @objects_a = objects.to_a
 
     attach_create_handlers(@objects.keys)
     attach_edit_handlers(@objects)    
+
   end
   
   def format_line!(a, i=0)
@@ -537,7 +541,7 @@ EOF
     self.instance_eval(
 %Q(
   def #{name.downcase}()     
-    @objects['#{name}'].new(@parent_node.element('.'), id: @id)
+    @objects['#{name}'].new(@parent_node, id: @id)
   end
 ))
     end
@@ -574,7 +578,7 @@ EOF
     
     if schema then
       load_handlers(schema)
-      load_find_by(schema)
+      load_find_by(schema) unless schema[/^\w+[^\/]+\/\{/]
     end
 
     @parent_node = @doc.root.element('records')
