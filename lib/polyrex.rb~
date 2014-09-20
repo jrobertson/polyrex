@@ -414,9 +414,7 @@ EOF
     objects = PolyrexObjects.new(schema)    
 
     h = objects.to_h
-
     @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
-
     @objects_a = objects.to_a
 
     attach_create_handlers(@objects.keys)
@@ -566,6 +564,13 @@ EOF
     @doc = Rexle.new buffer
 
     schema = @doc.root.text('summary/schema')
+    
+    if schema.nil? then
+      schema = PolyrexSchema.new.parse(buffer).to_schema 
+      e = @doc.root.element('summary')
+      e.add Rexle::Element.new('schema').add_text(schema)
+    end
+    
 
     unless @format_masks
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')

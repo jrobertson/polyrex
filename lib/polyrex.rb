@@ -409,19 +409,14 @@ EOF
   end  
 
   def load_handlers(schema)
-    puts 'inside load_handlers'
+
     @create = PolyrexCreateObject.new(schema, id: @id_counter)
-    puts 'after polyrexcreateobject'
     objects = PolyrexObjects.new(schema)    
-    puts 'after polyrexobjects'
 
     h = objects.to_h
-    puts 'after to_h'
     @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
-
     @objects_a = objects.to_a
-    puts '@objects_a : ' + @objects_a.inspect
-    puts 'debug this'
+
     attach_create_handlers(@objects.keys)
     attach_edit_handlers(@objects)    
 
