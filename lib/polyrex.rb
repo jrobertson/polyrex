@@ -412,13 +412,13 @@ EOF
 
     @create = PolyrexCreateObject.new(schema, id: @id_counter)
     objects = PolyrexObjects.new(schema)    
-
     h = objects.to_h
-    @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
-    @objects_a = objects.to_a
 
+    @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
+
+    @objects_a = objects.to_a
     attach_create_handlers(@objects.keys)
-    attach_edit_handlers(@objects)    
+    #attach_edit_handlers(@objects)    
 
   end
   
@@ -623,7 +623,7 @@ EOF
         xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
         "def find_by_#{class_name}_#{method_name}(val) 
           @parent_node = #{xpath}
-          @parent_node ? self.#{class_name} : nil
+          @parent_node ? @objects['#{class_name}'].new(@parent_node, id: @id) : nil
         end"
       end 
     end
