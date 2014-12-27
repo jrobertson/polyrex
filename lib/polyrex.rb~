@@ -412,13 +412,13 @@ EOF
 
     @create = PolyrexCreateObject.new(schema, id: @id_counter)
     objects = PolyrexObjects.new(schema)    
-
     h = objects.to_h
-    @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
-    @objects_a = objects.to_a
 
+    @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
+
+    @objects_a = objects.to_a
     attach_create_handlers(@objects.keys)
-    attach_edit_handlers(@objects)    
+    #attach_edit_handlers(@objects)    
 
   end
   
@@ -436,19 +436,8 @@ EOF
       tag_name = @recordx[i].to_s
       line = raw_line = x.shift
 
-      if @type == 'checklist' then
 
-        raw_checked, line = raw_line.partition(/\]/).values_at 0,2
-        
-        if raw_checked.lstrip[/^\[/] then
-          checkmark = raw_checked[/x/] ? true : false
-        else
-          checkmark = nil
-          line = raw_line
-        end        
-      else
-        line = raw_line
-      end
+      line = raw_line
       
       if line[/\w+\s*---/] then
 
@@ -488,9 +477,6 @@ EOF
       record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
       
-      if @type == 'checklist' then
-        field_values[-1] = checkmark.to_s unless checkmark.nil?
-      end
       
       @field_names.zip(field_values).each do |name, value|  
         field =  Rexle::Element.new(name.to_s)
@@ -623,7 +609,7 @@ EOF
         xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
         "def find_by_#{class_name}_#{method_name}(val) 
           @parent_node = #{xpath}
-          @parent_node ? self.#{class_name} : nil
+          @parent_node ? @objects['#{class_name}'].new(@parent_node, id: @id) : nil
         end"
       end 
     end

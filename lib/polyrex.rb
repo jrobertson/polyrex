@@ -392,13 +392,6 @@ EOF
 
     end
 
-    if @type == 'checklist' then
-      
-      @format_masks[1..-1].each do |fm|
-        fm.sub!(/\s(\[[^\[]+\]$)/,'999999999\1')
-      end
-    end
-    
     @summary.format_mask = @format_masks
 
     records = @parent_node.root
@@ -423,9 +416,29 @@ EOF
   end
   
   def format_line!(a, i=0)
-
+    
     records = Rexle::Element.new('records')
+    
+    # add code here for rowx
+    @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/)\
+                                            .flatten.map(&:to_sym)
 
+    rowx_fields = a.map{|x| x.first[/^\w+(?=:)/].to_s.to_sym}.uniq
+    
+    records = if (@field_names & rowx_fields).length >= 2 then
+      # rowx implementation still to-do
+      #vertical_fiedlparse(records, a, i)
+    else
+      horizontal_fieldparse(records, a, i)
+    end
+    
+  end
+    
+  
+  # -- end of full text edit methods
+    
+  def horizontal_fieldparse(records, a, i)
+    
     a.each do |x|          
 
       unless @recordx[i] then
@@ -436,19 +449,9 @@ EOF
       tag_name = @recordx[i].to_s
       line = raw_line = x.shift
 
-      if @type == 'checklist' then
 
-        raw_checked, line = raw_line.partition(/\]/).values_at 0,2
-        
-        if raw_checked.lstrip[/^\[/] then
-          checkmark = raw_checked[/x/] ? true : false
-        else
-          checkmark = nil
-          line = raw_line
-        end        
-      else
-        line = raw_line
-      end
+      line = raw_line
+
       
       if line[/\w+\s*---/] then
 
@@ -459,6 +462,7 @@ EOF
         next
       end
 
+      
       unless @format_masks[i][/^\(.*\)$/] then
 
         @field_names, field_values = RXRawLineParser.new(format_masks[i])\
@@ -487,10 +491,7 @@ EOF
 
       record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
-      
-      if @type == 'checklist' then
-        field_values[-1] = checkmark.to_s unless checkmark.nil?
-      end
+
       
       @field_names.zip(field_values).each do |name, value|  
         field =  Rexle::Element.new(name.to_s)
@@ -499,10 +500,6 @@ EOF
       end
 
       format_mask = @format_masks[i]
-
-      if @type == 'checklist' then
-        format_mask = format_mask.sub(/999999999/,' ')
-      end
 
       schema = "%s[%s]" % [tag_name, @field_names.join(', ')]
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
@@ -515,11 +512,9 @@ EOF
       record.add child_records
       records.add record
     end
-
+    
     records
   end
-  
-  # -- end of full text edit methods
 
   def attach_create_handlers(names)
     methodx = names.map do |name|
