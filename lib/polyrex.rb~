@@ -360,19 +360,35 @@ EOF
     
     if @raw_header then
       header = @raw_header[/<?polyrex (.*)?>/,1]
-      a = header.scan(/\w+\=["'][^"']+["']/).map do |x| 
-        r = x.split(/=/)
-        [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]]
-      end
+      #a = header.scan(/[\w\[\]]+\=["'][^"']+["']/).map do |x| 
+      #  r = x.split(/=/)
+      #  [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]]
+      #end
+      r1 = /([\w\[\]\-]+\s*\=\s*'[^']*)'/
+      r2 = /([\w\[\]\-]+\s*\=\s*"[^"]*)"/
+
+      a = header.scan(/#{r1}|#{r2}/).map(&:compact).flatten            
 
       if options[:schema] then
         a.delete a.assoc(:schema)
         self.method(:schema=).call(options[:schema])
       end
 
-      a.each do |name, value|
-        unless options.keys.include? name[0..-2].to_sym then
-          self.method(name).call(value) 
+      a.each do |x|
+        
+        attr, val = x.split(/\s*=\s*["']/,2)
+
+        i = attr[/format_masks?\[(\d+)/,1]        
+
+        if i then
+
+          @format_masks[i.to_i] = val
+
+        else
+          unless options.keys.include? attr[0..-2].to_sym then
+            #self.method(name).call(value) 
+            self.method((attr + '=').to_sym).call(unescape val)
+          end
         end
       end
     end
@@ -400,7 +416,11 @@ EOF
     @parent_node.root.add format_line!( LineTree.new(raw_lines.join("\n").strip).to_a)
 
   end  
-
+  
+  def unescape(s)
+    s.gsub('&lt;', '<').gsub('&gt;','>')
+  end
+  
   def load_handlers(schema)
 
     @create = PolyrexCreateObject.new(schema, id: @id_counter)
@@ -438,7 +458,7 @@ EOF
   # -- end of full text edit methods
     
   def horizontal_fieldparse(records, a, i)
-    
+
     a.each do |x|          
 
       unless @recordx[i] then

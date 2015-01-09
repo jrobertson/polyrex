@@ -163,6 +163,15 @@ class Polyrex
     end
   end
 
+  def rxpath(s)
+    
+    a = @doc.root.xpath s.split('/').map \
+                  {|x| x.sub('[','[summary/').prepend('records/')}.join('/')
+    
+    a.map {|x| @objects[x.name].new(x, id: x.attributes[:id]) }
+
+  end
+  
   def schema=(s)
 
     openx(s)
