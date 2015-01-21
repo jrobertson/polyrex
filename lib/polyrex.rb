@@ -422,7 +422,8 @@ EOF
     records = @parent_node.root
     @parent_node = records.parent
     records.delete
-    @parent_node.root.add format_line!( LineTree.new(raw_lines.join("\n").strip).to_a)
+    lines = LineTree.new(raw_lines.join("\n").strip, ignore_label: true).to_a
+    @parent_node.root.add format_line!( lines)
 
   end  
   
