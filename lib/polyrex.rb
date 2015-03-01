@@ -297,6 +297,12 @@ EOF
     @polyrex_xslt.xslt_schema = s
     self
   end
+  
+  protected
+  
+  def doc()
+    @doc
+  end
 
   private
 

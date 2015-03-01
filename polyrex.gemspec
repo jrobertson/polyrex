@@ -1,11 +1,10 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '1.0.4'
-  s.summary = 'polyrex'
+  s.version = '1.0.5'
+  s.summary = 'A flavour of XML for storing and retrieveing records in a Polyrex hierarchy'
   s.authors = ['James Robertson']
   s.files = Dir['lib/**/*.rb']
   s.add_runtime_dependency('polyrex-schema', '~> 0.4', '>=0.4.0')
-  s.add_runtime_dependency('line-tree', '~> 0.5', '>=0.5.2')
   s.add_runtime_dependency('polyrex-objects', '~> 0.8', '>=0.8.5')
   s.add_runtime_dependency('polyrex-createobject', '~> 0.5', '>=0.5.7')
   s.add_runtime_dependency('polyrex-object-methods', '~> 0.2', '>=0.2.2')
