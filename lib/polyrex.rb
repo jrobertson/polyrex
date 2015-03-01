@@ -62,12 +62,9 @@ class Polyrex
 
       end
 
+      @summary = RecordX.new @doc.root.xpath("summary/*")
+      @summary_fields = @summary.keys
 
-      summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
-      #@summary = OpenStruct.new summary_h
-
-      @summary = RecordX.new summary_h
-      @summary_fields = summary_h.keys.map(&:to_sym)
     end
     
     @polyrex_xslt = RecordxXSLT.new
@@ -144,8 +141,10 @@ class Polyrex
     @format_masks
   end 
   
-  def parse(buffer='', options={})
+  def parse(x=nil, options={})
 
+    buffer, type = RXFHelper.read(x)
+    
     buffer = yield if block_given?          
     string_parse buffer.clone, options
     self
@@ -175,8 +174,8 @@ class Polyrex
   def schema=(s)
 
     openx(s)
-    summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text]}.flatten]      
-    #@summary = OpenStruct.new summary_h
+
+    summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text.to_s]}.flatten]      
 
     @summary = RecordX.new summary_h
     @summary_fields = summary_h.keys.map(&:to_sym)    
@@ -240,8 +239,8 @@ EOF
       records.map do |item|
 
         summary = item.element 'summary'
-        format_mask = summary.text 'format_mask'
-        line = format_mask.gsub(/\[![^\]]+\]/){|x| summary.text x[2..-2]}
+        format_mask = summary.text('format_mask').to_s
+        line = format_mask.gsub(/\[![^\]]+\]/){|x| summary.text(x[2..-2]).to_s}
 
         records = item.element('records').elements.to_a
         line = line + "\n" + build(records, indent + 1).join("\n") if records.length > 0
@@ -319,8 +318,8 @@ EOF
 
     # -- required for the parsing feature
     doc = PolyrexSchema.new(schema).to_doc
-
     fm = doc.root.xpath('//format_mask/text()')
+
     @format_masks = fm.zip(@format_masks).map{|x,y| y || x }
 
     schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
@@ -352,7 +351,7 @@ EOF
     # get the fields
     fields = summary.elements.map do |x|
       next if %w(schema format_mask recordx_type).include? x.name 
-      r = x.text.to_s.gsub(/^[\n\s]+/,'').length > 0 ? x.text : x.cdatas.join.strip
+      r = x.text.to_s.gsub(/^[\n\s]+/,'').length > 0 ? x.text.to_s : x.cdatas.join.strip
       REXML::Text::unnormalize(r)
     end
 
@@ -369,10 +368,7 @@ EOF
     
     if @raw_header then
       header = @raw_header[/<?polyrex (.*)?>/,1]
-      #a = header.scan(/[\w\[\]]+\=["'][^"']+["']/).map do |x| 
-      #  r = x.split(/=/)
-      #  [(r[0] + "=").to_sym, r[1][/^["'](.*)["']$/,1]]
-      #end
+
       r1 = /([\w\[\]\-]+\s*\=\s*'[^']*)'/
       r2 = /([\w\[\]\-]+\s*\=\s*"[^"]*)"/
 
@@ -395,14 +391,14 @@ EOF
 
         else
           unless options.keys.include? attr[0..-2].to_sym then
-            #self.method(name).call(value) 
             self.method((attr + '=').to_sym).call(unescape val)
           end
         end
       end
+
     end
 
-    raw_lines = buffer.strip.split(/\r?\n|\r(?!\n)/)    
+    raw_lines = buffer.strip.lines.map(&:rstrip)
 
     raw_summary = schema[/^\w+\[([^\]]+)/,1]
 
@@ -422,13 +418,14 @@ EOF
     records = @parent_node.root
     @parent_node = records.parent
     records.delete
+
     lines = LineTree.new(raw_lines.join("\n").strip, ignore_label: true).to_a
     @parent_node.root.add format_line!( lines)
 
   end  
   
   def unescape(s)
-    s.gsub('&lt;', '<').gsub('&gt;','>')
+    r = s.gsub('&lt;', '<').gsub('&gt;','>')
   end
   
   def load_handlers(schema)
@@ -446,7 +443,7 @@ EOF
   end
   
   def format_line!(a, i=0)
-    
+
     records = Rexle::Element.new('records')
     
     # add code here for rowx
@@ -481,7 +478,6 @@ EOF
 
 
       line = raw_line
-
       
       if line[/\w+\s*---/] then
 
@@ -491,18 +487,16 @@ EOF
         summary.add ynode
         next
       end
-
       
       unless @format_masks[i][/^\(.*\)$/] then
 
         @field_names, field_values = RXRawLineParser.new(format_masks[i])\
-                                                            .parse(line)
-        
+                                                            .parse(line)        
       else
 
         format_masks = @format_masks[i][1..-2].split('|')
         patterns = format_masks.map do |x|
-          regexify_fmask(x) #.sub(/\[/,'\[').sub(/\]/,'\]')
+          regexify_fmask(x)
         end
 
         pattern = patterns.detect {|x| line.match(/#{x}/)}
@@ -522,14 +516,13 @@ EOF
       record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
 
-      
       @field_names.zip(field_values).each do |name, value|  
         field =  Rexle::Element.new(name.to_s)
         field.text = value        
         summary.add field
       end
 
-      format_mask = @format_masks[i]
+      format_mask = @format_masks[i].to_s
 
       schema = "%s[%s]" % [tag_name, @field_names.join(', ')]
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
@@ -537,7 +530,7 @@ EOF
       summary.add Rexle::Element.new('recordx_type').add_text('polyrex')
       
       record.add summary
-      child_records = format_line!(x, i+1) #jr071213 unless x.empty?
+      child_records = format_line!(x, i+1)
 
       record.add child_records
       records.add record
@@ -578,24 +571,22 @@ EOF
     elsif s[/\[/] then  # schema
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
-      buffer = open(s, 'UserAgent' => 'Polyrex-Reader'){|x| x.read}
+      buffer = open(s, 'UserAgent' => 'Polyrex-Reader').read
     else # local file
-      buffer = File.open(s,'r').read
+      buffer = File.read s
       @local_filepath = s
     end
 
     buffer.gsub!(/<schema>[^<]+/, '<schema>' + @schema) if @schema
-
     @doc = Rexle.new buffer
 
-    schema = @doc.root.text('summary/schema')
+    schema = @doc.root.text('summary/schema').to_s
     
     if schema.nil? then
       schema = PolyrexSchema.new.parse(buffer).to_schema 
       e = @doc.root.element('summary')
       e.add Rexle::Element.new('schema').add_text(schema)
     end
-    
 
     unless @format_masks
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
@@ -605,7 +596,7 @@ EOF
 
     id = @doc.root.xpath('max(//@id)')
     @id_counter = id.to_s.succ if id
-    
+
     if schema then
       load_handlers(schema)
       load_find_by(schema) unless schema[/^\w+[^\/]+\/\{/]
@@ -639,7 +630,8 @@ EOF
   end
   
 
-  def load_find_by(schema)  
+  def load_find_by(schema)
+
     a = PolyrexObjectMethods.new(schema).to_a
 
     methodx = a.map do |class_name, methods| 

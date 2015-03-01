@@ -1,16 +1,16 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '1.0.3'
+  s.version = '1.0.4'
   s.summary = 'polyrex'
   s.authors = ['James Robertson']
   s.files = Dir['lib/**/*.rb']
-  s.add_runtime_dependency('polyrex-schema', '~> 0.1', '>=0.1.15')
-  s.add_runtime_dependency('line-tree', '~> 0.4', '>=0.4.7')
-  s.add_runtime_dependency('polyrex-objects', '~> 0.7', '>=0.7.8')
-  s.add_runtime_dependency('polyrex-createobject', '~> 0.4', '>=0.4.15')
-  s.add_runtime_dependency('polyrex-object-methods', '~> 0.1', '>=0.1.2')
-  s.add_runtime_dependency('recordx-xslt', '~> 0.1', '>=0.1.3') 
-  s.add_runtime_dependency('dynarex', '~> 1.3', '>=1.3.5')
+  s.add_runtime_dependency('polyrex-schema', '~> 0.4', '>=0.4.0')
+  s.add_runtime_dependency('line-tree', '~> 0.5', '>=0.5.2')
+  s.add_runtime_dependency('polyrex-objects', '~> 0.8', '>=0.8.5')
+  s.add_runtime_dependency('polyrex-createobject', '~> 0.5', '>=0.5.7')
+  s.add_runtime_dependency('polyrex-object-methods', '~> 0.2', '>=0.2.2')
+  s.add_runtime_dependency('recordx-xslt', '~> 0.1', '>=0.1.4') 
+  s.add_runtime_dependency('dynarex', '~> 1.4', '>=1.4.1')
   s.signing_key = '../privatekeys/polyrex.pem'
   s.cert_chain  = ['gem-public_cert.pem']
   s.license = 'MIT'
