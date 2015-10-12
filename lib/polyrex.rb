@@ -113,7 +113,7 @@ class Polyrex
     @doc.to_s(options)
   end
 
-  def save(filepath=nil, options={})    
+  def save(filepath=nil, opt={}, options: opt)    
     refresh_summary
     filepath ||= @local_filepath
     @local_filepath = filepath
@@ -156,6 +156,31 @@ class Polyrex
     @doc.root.element(s)
   end
   
+  def leaf_nodes_to_dx()
+    
+    schema, record_name = @summary.schema\
+                                .match(/([^\/]+\/([^\/]+)\[[^\[]+$)/).captures
+    
+    xml = RexleBuilder.new
+
+    xml.items do
+      xml.summary do
+        xml.schema schema.sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
+      end
+      xml.records 
+    end
+    
+    doc = Rexle.new xml.to_a
+    body = doc.root.element 'records'
+    a = self.xpath('//' + record_name)
+
+    a.each do |record|
+      body.add record.deep_clone
+    end
+
+    make_dynarex doc.root
+  end
+  
   def records
     @doc.root.xpath("records/*").map do |record|      
       @objects_a[0].new(record)
@@ -194,42 +219,14 @@ class Polyrex
     root = @doc.root.deep_clone
 
     summary = root.element('summary')
-    e = summary.element('schema')
-    e.text = e.text[/[^\/]+\/[^\/]+/].sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
     summary.delete('format_mask')
     summary.element('recordx_type').text = 'dynarex'
 
-    summary.add root.element('records/*/summary/format_mask').clone
-    root.xpath('records/*/summary/format_mask').each(&:delete)
+    summary.add root.element('records/*/summary/format_mask').clone    
+    e = summary.element('schema')
+    e.text = e.text[/[^\/]+\/[^\/]+/].sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
 
-xsl_buffer =<<EOF
-<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
-<xsl:output encoding="UTF-8"
-            indent="yes"
-            omit-xml-declaration="yes"/>
-
-  <xsl:template match="*">
-    <xsl:element name="{name()}">
-    <xsl:element name="summary">
-      <xsl:for-each select="summary/*">
-        <xsl:copy-of select="."/>
-      </xsl:for-each>
-    </xsl:element>
-    <xsl:element name="records">
-      <xsl:for-each select="records/*">
-        <xsl:element name="{name()}">
-          <xsl:copy-of select="summary/*"/>
-        </xsl:element>
-      </xsl:for-each>
-    </xsl:element>
-    </xsl:element>
-  </xsl:template>
-</xsl:stylesheet>
-EOF
-    xslt  = Nokogiri::XSLT(xsl_buffer)
-    buffer = xslt.transform(Nokogiri::XML(root.xml)).to_s
-    Dynarex.new buffer
-
+    make_dynarex(root)
   end
 
   def to_s()
@@ -305,6 +302,40 @@ EOF
   end
 
   private
+  
+  def make_dynarex(root)
+    
+
+    root.xpath('records/*/summary/format_mask').each(&:delete)
+
+xsl_buffer =<<EOF
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+<xsl:output encoding="UTF-8"
+            indent="yes"
+            omit-xml-declaration="yes"/>
+
+  <xsl:template match="*">
+    <xsl:element name="{name()}">
+    <xsl:element name="summary">
+      <xsl:for-each select="summary/*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+    </xsl:element>
+    <xsl:element name="records">
+      <xsl:for-each select="records/*">
+        <xsl:element name="{name()}">
+          <xsl:copy-of select="summary/*"/>
+        </xsl:element>
+      </xsl:for-each>
+    </xsl:element>
+    </xsl:element>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+    xslt  = Nokogiri::XSLT(xsl_buffer)
+    buffer = xslt.transform(Nokogiri::XML(root.xml)).to_s
+    Dynarex.new buffer
+  end    
 
   def refresh_records(records, fields, level)
 
