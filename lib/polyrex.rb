@@ -113,10 +113,13 @@ class Polyrex
     @doc.to_s(options)
   end
 
-  def save(filepath=nil, opt={}, options: opt)    
+  def save(filepath=nil, opt={}, options: opt, pretty: false)    
+    
     refresh_summary
     filepath ||= @local_filepath
     @local_filepath = filepath
+    
+    options.merge!({pretty: pretty}) if options.empty?
     xml = @doc.to_s(options)
     buffer = block_given? ? yield(xml) : xml
     File.open(filepath,'w'){|f| f.write buffer}    
