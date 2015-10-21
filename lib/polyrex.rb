@@ -38,7 +38,7 @@ end
 
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
-                :schema, :type, :delimiter
+                :schema, :type, :delimiter, :xslt
 
   def initialize(location=nil, opt={})
 
@@ -64,6 +64,7 @@ class Polyrex
 
       @summary = RecordX.new @doc.root.xpath("summary/*")
       @summary_fields = @summary.keys
+      
 
     end
     
@@ -121,6 +122,7 @@ class Polyrex
     
     options.merge!({pretty: pretty}) if options.empty?
     xml = @doc.to_s(options)
+    
     buffer = block_given? ? yield(xml) : xml
     File.open(filepath,'w'){|f| f.write buffer}    
   end
@@ -293,6 +295,12 @@ class Polyrex
     end
   end
 
+  def xslt=(value)
+    
+    @summary.xslt = value
+
+  end    
+  
   def xslt_schema=(s)
     @polyrex_xslt.xslt_schema = s
     self
@@ -689,7 +697,10 @@ EOF
   end
 
 
+  # refreshes the XML document with any new modification from 
+  #                                                the summary object
   def refresh_summary()
+    
     summary = @doc.root.element('summary')    
     @summary.to_h.each do |k,v| 
       e = summary.element(k.to_s)
@@ -698,6 +709,11 @@ EOF
       else
         summary.add Rexle::Element.new(k.to_s).add_text(v)        
       end
+    end
+    
+    if @summary.xslt then
+      @doc.instructions = [['xml-stylesheet', 
+        "title='XSL_formatting' type='text/xsl' href='#{@summary.xslt}'"]] 
     end
   end
 
