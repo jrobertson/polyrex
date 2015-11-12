@@ -687,8 +687,15 @@ EOF
       methods.map do |method_name| 
         xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
         "def find_by_#{class_name}_#{method_name}(val) 
-          @parent_node = #{xpath}
-          @parent_node ? @objects['#{class_name}'].new(@parent_node, id: @id) : nil
+        
+          parent_node = #{xpath}
+          
+          if parent_node then 
+            @objects['#{class_name}'].new(@parent_node, id: @id)
+          else
+            nil
+          end
+          
         end"
       end 
     end
