@@ -590,8 +590,8 @@ EOF
   def attach_create_handlers(names)
     methodx = names.map do |name|
 %Q(
-  def create_#{name.downcase}(params) 
-    self.create.#{name.downcase}(params)
+  def create_#{name.downcase}(params, &blk) 
+    self.create.#{name.downcase}(params, &blk)
   end
 )
     end
