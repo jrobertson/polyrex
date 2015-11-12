@@ -591,7 +591,7 @@ EOF
     methodx = names.map do |name|
 %Q(
   def create_#{name.downcase}(params) 
-    self.create.#{name.downcase}
+    self.create.#{name.downcase}(params)
   end
 )
     end
