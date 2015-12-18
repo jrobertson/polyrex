@@ -688,10 +688,10 @@ EOF
         xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
         "def find_by_#{class_name}_#{method_name}(val) 
         
-          parent_node = #{xpath}
+          node = #{xpath}
           
-          if parent_node then 
-            @objects['#{class_name}'].new(@parent_node, id: @id)
+          if node then
+            @objects['#{class_name}'].new(node, id: @id)
           else
             nil
           end
