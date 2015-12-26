@@ -256,7 +256,7 @@ class Polyrex
     summary_fields = self.summary.to_h.keys
 
     %w(recordx_type schema format_mask).each {|x| summary_fields.delete x}
-    sumry = summary_fields.map {|x| x + ': ' + \
+    sumry = summary_fields.map {|x| x.to_s + ': ' + \
                        self.summary.method(x.to_sym).call}.join("\n") + "\n"
 
 
@@ -270,8 +270,9 @@ class Polyrex
       else
         smry_fields << :format_mask
       end
-      s = smry_fields.map {|x| "%s=\"%s\"" % \
-        [x, self.summary.send(x).gsub('"', '\"') ]}.join ' '
+
+      s = smry_fields.map {|x|  "%s=\"%s\"" % \
+        [x, self.summary.send(x).to_s.gsub('"', '\"') ]}.join ' '
 
       declaration = %Q(<?polyrex %s?>\n) % s
     end
