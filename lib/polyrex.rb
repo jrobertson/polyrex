@@ -80,10 +80,13 @@ class Polyrex
   end
 
   def create(id: nil)
-      # @create is a PolyrexCreateObject, @parent_node is a Rexle::Element pointing to the current record
+    
+    # @create is a PolyrexCreateObject, 
+    # @parent_node is a Rexle::Element pointing to the current record
     
     @create.id = id || @id_counter
-    @create.record = @parent_node.name == 'records' ? @parent_node.root : @parent_node.root.element('records')
+    @create.record = @parent_node.name == 'records' ? \
+                     @parent_node.root : @parent_node.root.element('records')
     @create
   end
 
@@ -205,7 +208,8 @@ class Polyrex
 
     openx(s)
 
-    summary_h = Hash[*@doc.root.xpath("summary/*").map {|x| [x.name, x.text.to_s]}.flatten]      
+    summary_h = Hash[*@doc.root.xpath("summary/*").\
+                                     map {|x| [x.name, x.text.to_s]}.flatten]
 
     @summary = RecordX.new summary_h
     @summary_fields = summary_h.keys.map(&:to_sym)    
@@ -245,7 +249,10 @@ class Polyrex
         line = format_mask.gsub(/\[![^\]]+\]/){|x| summary.text(x[2..-2]).to_s}
 
         records = item.element('records').elements.to_a
-        line = line + "\n" + build(records, indent + 1).join("\n") if records.length > 0
+        
+        if records.length > 0 then
+          line = line + "\n" + build(records, indent + 1).join("\n") 
+        end
         ('  ' * indent) + line
       end
     end
@@ -378,7 +385,8 @@ EOF
     summary = ''
     if @format_masks.length == @recordx.length then
       root_format_mask = @format_masks.shift
-      field_names = root_format_mask.to_s.scan(/\[!(\w+)\]/).flatten.map(&:to_sym)
+      field_names = root_format_mask.to_s.scan(/\[!(\w+)\]/).\
+                                                          flatten.map(&:to_sym)
       summary = field_names.map {|x| "<%s/>" % x}.join
     end
     
@@ -389,27 +397,26 @@ EOF
     @id_counter = '0'
 
     root_name = @recordx.shift
-    ("<%s><summary>%s</summary><records/></%s>" % [root_name, (summary || '') , root_name])
+    ("<%s><summary>%s</summary><records/></%s>" % \
+                                    [root_name, (summary || '') , root_name])
 
   end
   
   def recordx_map(node)
+    
     # get the summary
-    summary = XPath.first(node, 'summary')
-
-    # get the fields
-    fields = summary.elements.map do |x|
+    fields = node.xpath('summary/*').map do |x|
       next if %w(schema format_mask recordx_type).include? x.name 
-      r = x.text.to_s.gsub(/^[\n\s]+/,'').length > 0 ? x.text.to_s : x.cdatas.join.strip
-      REXML::Text::unnormalize(r)
+      r = x.text.to_s.gsub(/^[\n\s]+/,'').length > 0 ? x.text.to_s : \
+                                                          x.cdatas.join.strip
+      r
     end
 
     # get the records
-    records = XPath.first(node, 'records')
-    a = records.elements.map {|x| recordx_map x}
+    a = node.xpath('records/*').map {|x| recordx_map x}
     
-    [fields, a]
-  end
+    [fields.compact, a]
+  end  
   
   def string_parse(buffer, options={})
 
@@ -686,7 +693,8 @@ EOF
     methodx = a.map do |class_name, methods| 
       class_name.downcase!
       methods.map do |method_name| 
-        xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % [class_name, method_name]
+        xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % \
+                                                      [class_name, method_name]
         "def find_by_#{class_name}_#{method_name}(val) 
         
           node = #{xpath}
