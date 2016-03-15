@@ -225,11 +225,12 @@ class Polyrex
   end
   
   def to_dynarex()
+
     root = @doc.root.deep_clone
 
     summary = root.element('summary')
-    summary.delete('format_mask')
-    summary.element('recordx_type').text = 'dynarex'
+    #summary.delete('format_mask')
+    #summary.element('recordx_type').text = 'dynarex'
 
     summary.add root.element('records/*/summary/format_mask').clone    
     e = summary.element('schema')
@@ -325,9 +326,13 @@ class Polyrex
   def make_dynarex(root)
     
 
+    root.delete('summary/recordx_type')
+    root.delete('summary/format_mask')
     root.xpath('records/*/summary/format_mask').each(&:delete)
+    root.xpath('records/*/records').each(&:delete)
 
-xsl_buffer =<<EOF
+
+xsl_buffer = '
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
 <xsl:output encoding="UTF-8"
             indent="yes"
@@ -350,11 +355,11 @@ xsl_buffer =<<EOF
     </xsl:element>
   </xsl:template>
 </xsl:stylesheet>
-EOF
-    #jr130316 xslt  = Nokogiri::XSLT(xsl_buffer)
-    #jr130316 buffer = xslt.transform(Nokogiri::XML(root.xml)).to_s
+'
+    
     buffer = Rexslt.new(xsl_buffer, root.xml).to_s
     Dynarex.new buffer
+    
   end    
 
   def refresh_records(records, fields, level)
@@ -647,6 +652,7 @@ EOF
 
     unless @format_masks
       schema_rpath = schema.gsub(/\[[^\]]+\]/,'')
+
       @recordx = schema_rpath.split('/')
       @recordx.shift
     end
