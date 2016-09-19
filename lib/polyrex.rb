@@ -190,6 +190,7 @@ class Polyrex
   end
   
   def records
+
     @doc.root.xpath("records/*").map do |record|      
       @objects_a[0].new(record)
     end
@@ -239,7 +240,7 @@ class Polyrex
     make_dynarex(root)
   end
 
-  def to_s()
+  def to_s(header: true)
 
     def build(records, indent=0)
 
@@ -285,9 +286,10 @@ class Polyrex
       declaration = %Q(<?polyrex %s?>\n) % s
     end
 
-    header = declaration + sumry
+    docheader = declaration + sumry
     out = build(self.records).join("\n")
-    header + "\n" + out
+    header ? docheader + "\n" + out : out
+    
   end
 
   def to_xslt()    
@@ -325,7 +327,6 @@ class Polyrex
   
   def make_dynarex(root)
     
-
     root.delete('summary/recordx_type')
     root.delete('summary/format_mask')
     root.xpath('records/*/summary/format_mask').each(&:delete)
@@ -356,7 +357,7 @@ xsl_buffer = '
   </xsl:template>
 </xsl:stylesheet>
 '
-    
+
     buffer = Rexslt.new(xsl_buffer, root.xml).to_s
     Dynarex.new buffer
     
