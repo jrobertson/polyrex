@@ -38,7 +38,7 @@ end
 
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
-                :schema, :type, :delimiter, :xslt
+                :schema, :type, :delimiter, :xslt, :format_masks
 
   def initialize(location=nil, opt={})
 
@@ -554,7 +554,14 @@ xsl_buffer = '
       unless @format_masks[i][/^\(.*\)$/] then
 
         @field_names, field_values = RXRawLineParser.new(format_masks[i])\
-                                                            .parse(line)        
+                                                            .parse(line)  
+        
+        schema_a = @schema.split('/')[1..-1]
+
+        @field_names = schema_a[i] ? \
+            schema_a[i][/\[([^\]]+)/,1].split(/\s*,\s*/).map(&:to_sym) : \
+            schema_a[-1][/\[([^\]]+)/,1].split(/\s*,\s*/).map(&:to_sym)
+
       else
 
         format_masks = @format_masks[i][1..-2].split('|')

@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '1.1.2'
+  s.version = '1.1.3'
   s.summary = 'A flavour of XML for storing and retrieveing records in a Polyrex hierarchy'
   s.authors = ['James Robertson']
   s.files = Dir['lib/polyrex.rb']
