@@ -107,6 +107,18 @@ class Polyrex
       format_mask.to_s.gsub(/\s/, separator)
     end
   end  
+  
+  def each_recursive(parent=self, &blk)
+    
+    parent.records.each do |x|
+
+      blk.call(x, parent) if block_given?
+
+      each_recursive(x, &blk) if x.records.any?
+      
+    end
+    
+  end  
 
   def record()
     @parent_node
