@@ -108,13 +108,13 @@ class Polyrex
     end
   end  
   
-  def each_recursive(parent=self, &blk)
+  def each_recursive(parent=self, level=0, &blk)
     
     parent.records.each do |x|
 
-      blk.call(x, parent) if block_given?
+      blk.call(x, parent, level) if block_given?
 
-      each_recursive(x, &blk) if x.records.any?
+      each_recursive(x, level+1, &blk) if x.records.any?
       
     end
     
