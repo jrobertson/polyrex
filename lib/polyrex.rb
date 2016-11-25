@@ -718,10 +718,16 @@ xsl_buffer = '
     a = PolyrexObjectMethods.new(schema).to_a
 
     methodx = a.map do |class_name, methods| 
+      
       class_name.downcase!
+      
       methods.map do |method_name| 
+        
         xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % \
                                                       [class_name, method_name]
+        xpath2 = %Q(@doc.root.xpath("//%s[summary/%s='\#\{val\}']")) % \
+                                                      [class_name, method_name]
+        
         "def find_by_#{class_name}_#{method_name}(val) 
         
           node = #{xpath}
@@ -732,7 +738,22 @@ xsl_buffer = '
             nil
           end
           
-        end"
+        end
+
+        def find_all_by_#{class_name}_#{method_name}(val) 
+        
+          nodes = #{xpath2}
+          
+          if nodes then
+            nodes.map do |node|
+              @objects['#{class_name}'].new(node, id: @id)
+            end
+          else
+            nil
+          end
+          
+        end        
+        "
       end 
     end
 
