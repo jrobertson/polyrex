@@ -733,7 +733,7 @@ xsl_buffer = '
           node = #{xpath}
           
           if node then
-            @objects['#{class_name}'].new(node, id: @id)
+            @objects['#{class_name}'].new(node, id: @id, objects: @objects)
           else
             nil
           end
@@ -746,7 +746,7 @@ xsl_buffer = '
           
           if nodes then
             nodes.map do |node|
-              @objects['#{class_name}'].new(node, id: @id)
+              @objects['#{class_name}'].new(node, id: @id, objects: @objects)
             end
           else
             nil
