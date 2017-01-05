@@ -35,6 +35,8 @@ module Enumerable
   end
 end
 
+class PolyrexException < Exception
+end
 
 class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
@@ -219,6 +221,11 @@ class Polyrex
   
   def schema=(s)
 
+    if s =~ /gem\[/ then
+      raise PolyrexException, "invalid schema: cannot contain the " + 
+          "word gem as a record name"
+    end
+    
     openx(s)
 
     summary_h = Hash[*@doc.root.xpath("summary/*").\

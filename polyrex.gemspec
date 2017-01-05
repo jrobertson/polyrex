@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'polyrex'
-  s.version = '1.1.8'
+  s.version = '1.1.9'
   s.summary = 'A flavour of XML for storing and retrieveing records in a Polyrex hierarchy'
   s.authors = ['James Robertson']
   s.files = Dir['lib/polyrex.rb']
@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.signing_key = '../privatekeys/polyrex.pem'
   s.cert_chain  = ['gem-public_cert.pem']
   s.license = 'MIT'
-  s.email = 'james@r0bertson.co.uk'
+  s.email = 'james@jamesrobertson.eu'
   s.homepage = 'https://github.com/jrobertson/polyrex'
   s.required_ruby_version = '>= 2.1.0'
 end
