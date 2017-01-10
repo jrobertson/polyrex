@@ -456,11 +456,7 @@ xsl_buffer = '
 
       a = header.scan(/#{r1}|#{r2}/).map(&:compact).flatten            
 
-      if options[:schema] then
-        a.delete a.assoc(:schema)
-        self.method(:schema=).call(options[:schema])
-      end
-
+      
       a.each do |x|
         
         attr, val = x.split(/\s*=\s*["']/,2)
@@ -477,7 +473,16 @@ xsl_buffer = '
           end
         end
       end
-
+      
+      options.each do |k,v|
+        
+        if options[k] then
+          a.delete a.assoc(k)
+          self.method(((k.to_s) + '=').to_sym).call(options[k])
+        end
+        
+      end
+            
     end
 
     raw_lines = buffer.strip.lines.map(&:rstrip)
