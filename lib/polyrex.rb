@@ -167,6 +167,10 @@ class Polyrex
 
     buffer, type = RXFHelper.read(x)
     
+    if type == :unknown and buffer.lines.length <= 1 then
+      raise PolyrexException, 'File not found' 
+    end
+    
     buffer = yield if block_given?          
     string_parse buffer.clone, options
     self
