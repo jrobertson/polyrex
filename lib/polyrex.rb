@@ -168,7 +168,7 @@ class Polyrex
     buffer, type = RXFHelper.read(x)
     
     if type == :unknown and buffer.lines.length <= 1 then
-      raise PolyrexException, 'File not found' 
+      raise PolyrexException, 'File not found: ' + x.inspect
     end
     
     buffer = yield if block_given?          
