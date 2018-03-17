@@ -42,21 +42,20 @@ class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
                 :schema, :type, :delimiter, :xslt, :format_masks
 
-  def initialize(location=nil, opt={})
+  def initialize(location=nil, schema: nil, id_counter: '1')
 
-    options = {id_counter: '1'}.merge opt
 
-    @id_counter = options[:id_counter]
+    @id_counter = id_counter
     @format_masks = []
     @delimiter = '' 
+
+    self.method(:schema=).call(schema) if schema  
     
     if location then
 
-      self.method(:schema=).call(options[:schema]) if options[:schema]
-
       openx(location)
 
-      if options[:schema] then
+      if schema then
 
         fields = @schema[/\/.*/].scan(/\[([^\]]+)/).map \
           {|x| x.first.split(',').map(&:strip)}
@@ -154,6 +153,10 @@ class Polyrex
   def id(id)
     @parent_node = @doc.root.element("//[@id='#{id}']")
     self
+  end
+  
+  def order=(val)
+    @order = val.to_s
   end
 
   # -- end of crud methods --
