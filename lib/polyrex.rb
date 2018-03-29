@@ -3,10 +3,10 @@
 # file: polyrex.rb
 
 #require 'open-uri'
-require 'polyrex-schema'
+#require 'polyrex-schema'
 #require 'line-tree'
 require 'polyrex-objects'
-require 'polyrex-createobject'
+#require 'polyrex-createobject'
 require 'polyrex-object-methods'
 require 'recordx-xslt'
 #require 'rexle'
@@ -42,10 +42,10 @@ class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
                 :schema, :type, :delimiter, :xslt, :format_masks
 
-  def initialize(location=nil, schema: nil, id_counter: '1')
+  def initialize(location=nil, schema: nil, id_counter: '1', debug: debug)
 
 
-    @id_counter = id_counter
+    @id_counter, @debug = id_counter, debug
     @format_masks = []
     @delimiter = '' 
 
@@ -70,6 +70,7 @@ class Polyrex
     end
     
     @polyrex_xslt = RecordxXSLT.new
+    #@parent_node = @doc.root if @doc
   end
 
   def add(pxobj)
@@ -80,15 +81,9 @@ class Polyrex
     CGI.unescapeHTML(to_xml(options))
   end
 
-  def create(id: nil)
-    
-    # @create is a PolyrexCreateObject, 
-    # @parent_node is a Rexle::Element pointing to the current record
-    
-    @create.id = id || @id_counter
-    @create.record = @parent_node.name == 'records' ? \
-                     @parent_node.root : @parent_node.root.element('records')
-    @create
+  def create(id: @id_counter)
+    puts 'id: ' + id.inspect if @debug
+    @create = PolyrexCreateObject.new(id: id, record: @doc.root)
   end
 
   def delete(x=nil)
@@ -176,6 +171,7 @@ class Polyrex
     
     buffer = yield if block_given?          
     string_parse buffer.clone, options
+
     self
   end    
   
@@ -212,9 +208,10 @@ class Polyrex
   
   def records
 
-    @doc.root.xpath("records/*").map do |record|      
-      @objects_a[0].new(record)
+    @doc.root.xpath("records/*").map do |node|      
+      Kernel.const_get(node.name.capitalize).new node, id: @id_counter
     end
+    
   end
 
   def rxpath(s)
@@ -222,7 +219,9 @@ class Polyrex
     a = @doc.root.xpath s.split('/').map \
                   {|x| x.sub('[','[summary/').prepend('records/')}.join('/')
     
-    a.map {|x| @objects[x.name].new(x, id: x.attributes[:id]) }
+    a.map do |node| 
+      Kernel.const_get(node.name.capitalize).new node, id: node.attributes[:id]
+    end
 
   end
   
@@ -524,10 +523,9 @@ xsl_buffer = '
   
   def load_handlers(schema)
 
-    @create = PolyrexCreateObject.new(schema, id: @id_counter)
-    objects = PolyrexObjects.new(schema)    
+    objects = PolyrexObjects.new(schema, debug: @debug)    
     h = objects.to_h
-
+    puts 'h:  ' + h.inspect if @debug
     @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
 
     @objects_a = objects.to_a
@@ -582,12 +580,18 @@ xsl_buffer = '
         next
       end
       
+      puts '@schema: ' + @schema.inspect if @debug
+      schema_a = @schema.split('/')[1..-1]
+      
+      if @debug then
+        puts 'schema_a: ' + schema_a.inspect
+        puts 'i: ' + i.inspect
+      end
+      
       unless @format_masks[i][/^\(.*\)$/] then
 
         @field_names, field_values = RXRawLineParser.new(format_masks[i])\
                                                             .parse(line)  
-        
-        schema_a = @schema.split('/')[1..-1]
 
         @field_names = schema_a[i] ? \
             schema_a[i][/\[([^\]]+)/,1].split(/\s*,\s*/).map(&:to_sym) : \
@@ -625,7 +629,9 @@ xsl_buffer = '
 
       format_mask = @format_masks[i].to_s
 
-      schema = "%s[%s]" % [tag_name, @field_names.join(', ')]
+      index = i >= schema_a.length ? schema_a.length - 1 : i
+
+      schema = schema_a[index..-1].join('/')
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
       summary.add Rexle::Element.new('schema').add_text(schema)
       summary.add Rexle::Element.new('recordx_type').add_text('polyrex')
@@ -752,7 +758,7 @@ xsl_buffer = '
           node = #{xpath}
           
           if node then
-            @objects['#{class_name}'].new(node, id: @id, objects: @objects)
+            Kernel.const_get(node.name.capitalize).new node, id: @id
           else
             nil
           end
@@ -765,7 +771,7 @@ xsl_buffer = '
           
           if nodes then
             nodes.map do |node|
-              @objects['#{class_name}'].new(node, id: @id, objects: @objects)
+              Kernel.const_get(node.name.capitalize).new node, id: @id
             end
           else
             nil
@@ -785,7 +791,9 @@ xsl_buffer = '
   def refresh_summary()
     
     summary = @doc.root.element('summary')    
-    @summary.to_h.each do |k,v| 
+    @summary.to_h.each do |k,v|
+      
+      puts "k: %s; v: %s" % [k, v] if @debug
       e = summary.element(k.to_s)
       if e then
         e.text = v
