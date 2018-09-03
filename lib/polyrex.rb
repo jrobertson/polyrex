@@ -51,9 +51,14 @@ class Polyrex
 
     self.method(:schema=).call(schema) if schema  
     
-    if location then
+    if location then      
 
-      openx(location)
+      s, type = RXFHelper.read(location)
+      return import(s) if s =~ /^\<\?polyrex\b/
+      
+      @local_filepath = location if type == :file or type == :dfs
+
+      openx(s)
 
       if schema then
 
