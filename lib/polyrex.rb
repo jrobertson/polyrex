@@ -269,6 +269,30 @@ class Polyrex
 
     make_dynarex(root)
   end
+  
+  def to_opml()
+    
+    puts '@schema: ' + @schema.inspect if @debug
+    
+    head, body = @schema.split(/(?<=\])/,2)
+    schema_body = body.gsub(/(?<=\[)[^\]]+/) do |x|
+      x.split(/\s*,\s*/).map {|field| '@' + field + ':' + field}.join(', ')
+    end
+    schema_head = head.gsub(/(?<=\[)[^\]]+/) do |x|
+      x.split(/\s*,\s*/).map {|field| field + ':' + field}.join(', ')
+    end
+
+    puts 'schema_body: ' + schema_body.inspect if @debug
+    puts 'schema_head: ' + schema_head.inspect if @debug
+    xslt_schema = schema_head.sub(/^\w+/,'opml>head') + schema_body.gsub(/\w+(?=\[)/,'outline').sub(/\/(\w+)(?=\[)/,'/body>outline')
+        
+    puts 'xslt_schema: ' + xslt_schema.inspect if @debug
+    
+    recxslt = RecordxXSLT.new(schema: @schema, xslt_schema: xslt_schema)
+    
+    Rexslt.new(recxslt.to_xslt, self.to_xml).to_s    
+    
+  end
 
   def to_s(header: true)
 
