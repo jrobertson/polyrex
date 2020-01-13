@@ -42,7 +42,7 @@ class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter, 
                 :schema, :type, :delimiter, :xslt, :format_masks
 
-  def initialize(location=nil, schema: nil, id_counter: '1', debug: debug)
+  def initialize(location=nil, schema: nil, id_counter: '1', debug: false)
 
 
     @id_counter, @debug = id_counter, debug
@@ -284,7 +284,9 @@ class Polyrex
 
     puts 'schema_body: ' + schema_body.inspect if @debug
     puts 'schema_head: ' + schema_head.inspect if @debug
-    xslt_schema = schema_head.sub(/^\w+/,'opml>head') + schema_body.gsub(/\w+(?=\[)/,'outline').sub(/\/(\w+)(?=\[)/,'/body>outline')
+    xslt_schema = schema_head.sub(/^\w+/,'opml>head') + 
+        schema_body.gsub(/\w+(?=\[)/,'outline')\
+        .sub(/\/(\w+)(?=\[)/,'/body>outline')
         
     puts 'xslt_schema: ' + xslt_schema.inspect if @debug
     
@@ -345,6 +347,18 @@ class Polyrex
     header ? docheader + "\n" + out : out
     
   end
+  
+  def to_tree()
+    
+    s = @schema.gsub(/(?<=\[)[^\]]+/) do |x|
+      x.split(/\s*,\s*/).map {|field| '@' + field + ':' + field}.join(', ')
+    end
+
+    xslt_schema = s.gsub(/\w+(?=\[)/,'item').sub(/^\w+/,'tree')                    
+    recxslt = RecordxXSLT.new(schema: @schema, xslt_schema: xslt_schema)    
+    Rexslt.new(recxslt.to_xslt, self.to_xml).to_s        
+    
+  end  
 
   def to_xslt()    
     @polyrex_xslt.schema = @schema
