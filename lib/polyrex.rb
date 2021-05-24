@@ -305,11 +305,12 @@ class Polyrex
         summary = item.element 'summary'
         format_mask = summary.text('format_mask').to_s
         line = format_mask.gsub(/\[![^\]]+\]/){|x| summary.text(x[2..-2]).to_s}
+        puts 'line: ' + line.inspect if @debug
 
-        records = item.element('records').elements.to_a
+        recordsx = item.element('records').elements.to_a
         
-        if records.length > 0 then
-          line = line + "\n" + build(records, indent + 1).join("\n") 
+        if recordsx.length > 0 then
+          line = line + "\n" + build(recordsx, indent + 1).join("\n") 
         end
         ('  ' * indent) + line
       end
@@ -342,7 +343,7 @@ class Polyrex
       declaration = %Q(<?polyrex %s?>\n) % s
     end
 
-    docheader = declaration + sumry
+    docheader = declaration + "\n" + sumry
     out = build(self.records).join("\n")
     header ? docheader + "\n" + out : out
     
@@ -534,7 +535,7 @@ xsl_buffer = '
             
     end
 
-    raw_lines = buffer.strip.lines.map(&:rstrip)
+    raw_lines = buffer.lstrip.lines.map(&:chomp)
 
     raw_summary = schema[/^\w+\[([^\]]+)/,1]
 
@@ -555,7 +556,9 @@ xsl_buffer = '
     @parent_node = records.parent
     records.delete
 
-    lines = LineTree.new(raw_lines.join("\n").strip, ignore_label: true).to_a
+    puts 'raw_lines: ' + raw_lines.inspect if @debug
+    lines = LineTree.new(raw_lines.join("\n"), ignore_label: true).to_a
+    puts 'lines: ' + lines.inspect if @debug
     @parent_node.root.add format_line!( lines)
 
   end  
