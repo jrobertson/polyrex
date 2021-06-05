@@ -119,7 +119,11 @@ class Polyrex
       
     end
     
-  end  
+  end
+
+  def export(filepath)
+    File.write filepath, to_s()
+  end
 
   def record()
     @parent_node
