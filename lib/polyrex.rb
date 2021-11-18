@@ -39,7 +39,7 @@ class PolyrexException < Exception
 end
 
 class Polyrex
-  attr_accessor :summary_fields, :xslt_schema, :id_counter, 
+  attr_accessor :summary_fields, :xslt_schema, :id_counter,
                 :schema, :type, :delimiter, :xslt, :format_masks
 
   def initialize(location=nil, schema: nil, id_counter: '1', debug: false)
@@ -47,15 +47,15 @@ class Polyrex
 
     @id_counter, @debug = id_counter, debug
     @format_masks = []
-    @delimiter = '' 
+    @delimiter = ''
 
-    self.method(:schema=).call(schema) if schema  
-    
-    if location then      
+    self.method(:schema=).call(schema) if schema
+
+    if location then
 
       s, type = RXFHelper.read(location)
       return import(s) if s =~ /^\<\?polyrex\b/
-      
+
       @local_filepath = location if type == :file or type == :dfs
 
       openx(s)
@@ -70,10 +70,10 @@ class Polyrex
 
       @summary = RecordX.new @doc.root.xpath("summary/*")
       @summary_fields = @summary.keys
-      
+
 
     end
-    
+
     @polyrex_xslt = RecordxXSLT.new
     #@parent_node = @doc.root if @doc
   end
@@ -99,7 +99,7 @@ class Polyrex
       @doc.root.xpath(x).each(&:delete)
     end
   end
-  
+
   def delimiter=(separator)
 
     @delimiter = separator
@@ -107,18 +107,18 @@ class Polyrex
     @format_masks.map! do |format_mask|
       format_mask.to_s.gsub(/\s/, separator)
     end
-  end  
-  
+  end
+
   def each_recursive(parent=self, level=0, &blk)
-    
+
     parent.records.each.with_index do |x, index|
 
       blk.call(x, parent, level, index) if block_given?
 
       each_recursive(x, level+1, &blk) if x.records.any?
-      
+
     end
-    
+
   end
 
   def export(filepath)
@@ -134,20 +134,20 @@ class Polyrex
     @doc.to_s(options)
   end
 
-  def save(filepath=nil, opt={}, options: opt, pretty: false)    
-    
+  def save(filepath=nil, opt={}, options: opt, pretty: false)
+
     refresh_summary
     filepath ||= @local_filepath
     @local_filepath = filepath
-    
+
     options.merge!({pretty: pretty}) if options.empty?
     xml = @doc.to_s(options)
-    
+
     buffer = block_given? ? yield(xml) : xml
-    File.open(filepath,'w'){|f| f.write buffer}    
+    File.open(filepath,'w'){|f| f.write buffer}
   end
-  
-  # -- start of crud methods -- 
+
+  # -- start of crud methods --
 
   def find_by_id(id)
     @parent_node = @doc.root.element("//[@id='#{id}']")
@@ -158,52 +158,52 @@ class Polyrex
     @parent_node = @doc.root.element("//[@id='#{id}']")
     self
   end
-  
+
   def order=(val)
     @order = val.to_s
   end
 
   # -- end of crud methods --
-  
+
   # -- start of full text edit methods
   def format_masks
     @format_masks
-  end 
-  
+  end
+
   def parse(x=nil, options={})
 
     buffer, type = RXFHelper.read(x)
-    
+
     if type == :unknown and buffer.lines.length <= 1 then
       raise PolyrexException, 'File not found: ' + x.inspect
     end
-    
-    buffer = yield if block_given?          
+
+    buffer = yield if block_given?
     string_parse buffer.clone, options
 
     self
-  end    
-  
+  end
+
   alias import parse
 
   def element(s)
     @doc.root.element(s)
   end
-  
+
   def leaf_nodes_to_dx()
-    
+
     schema, record_name = @summary.schema\
                                 .match(/([^\/]+\/([^\/]+)\[[^\[]+$)/).captures
-    
+
     xml = RexleBuilder.new
 
     xml.items do
       xml.summary do
         xml.schema schema.sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
       end
-      xml.records 
+      xml.records
     end
-    
+
     doc = Rexle.new xml.to_a
     body = doc.root.element 'records'
     a = self.xpath('//' + record_name)
@@ -214,43 +214,43 @@ class Polyrex
 
     make_dynarex doc.root
   end
-  
+
   def records
 
-    @doc.root.xpath("records/*").map do |node|      
+    @doc.root.xpath("records/*").map do |node|
       Kernel.const_get(node.name.capitalize).new node, id: @id_counter
     end
-    
+
   end
 
   def rxpath(s)
-    
+
     a = @doc.root.xpath s.split('/').map \
                   {|x| x.sub('[','[summary/').prepend('records/')}.join('/')
-    
-    a.map do |node| 
+
+    a.map do |node|
       Kernel.const_get(node.name.capitalize).new node, id: node.attributes[:id]
     end
 
   end
-  
+
   def schema=(s)
 
     if s =~ /gem\[/ then
-      raise PolyrexException, "invalid schema: cannot contain the " + 
+      raise PolyrexException, "invalid schema: cannot contain the " +
           "word gem as a record name"
     end
-    
+
     openx(s)
 
     summary_h = Hash[*@doc.root.xpath("summary/*").\
                                      map {|x| [x.name, x.text.to_s]}.flatten]
 
     @summary = RecordX.new summary_h
-    @summary_fields = summary_h.keys.map(&:to_sym)    
+    @summary_fields = summary_h.keys.map(&:to_sym)
     self
   end
-  
+
   def summary
     @summary
   end
@@ -258,7 +258,7 @@ class Polyrex
   def to_a()
     recordx_map @doc.root
   end
-  
+
   def to_dynarex()
 
     root = @doc.root.deep_clone
@@ -267,17 +267,17 @@ class Polyrex
     #summary.delete('format_mask')
     #summary.element('recordx_type').text = 'dynarex'
 
-    summary.add root.element('records/*/summary/format_mask').clone    
+    summary.add root.element('records/*/summary/format_mask').clone
     e = summary.element('schema')
     e.text = e.text[/[^\/]+\/[^\/]+/].sub(/(\/\w+)\[([^\]]+)\]/,'\1(\2)')
 
     make_dynarex(root)
   end
-  
+
   def to_opml()
-    
+
     puts '@schema: ' + @schema.inspect if @debug
-    
+
     head, body = @schema.split(/(?<=\])/,2)
     schema_body = body.gsub(/(?<=\[)[^\]]+/) do |x|
       x.split(/\s*,\s*/).map {|field| '@' + field + ':' + field}.join(', ')
@@ -288,16 +288,16 @@ class Polyrex
 
     puts 'schema_body: ' + schema_body.inspect if @debug
     puts 'schema_head: ' + schema_head.inspect if @debug
-    xslt_schema = schema_head.sub(/^\w+/,'opml>head') + 
+    xslt_schema = schema_head.sub(/^\w+/,'opml>head') +
         schema_body.gsub(/\w+(?=\[)/,'outline')\
         .sub(/\/(\w+)(?=\[)/,'/body>outline')
-        
+
     puts 'xslt_schema: ' + xslt_schema.inspect if @debug
-    
+
     recxslt = RecordxXSLT.new(schema: @schema, xslt_schema: xslt_schema)
-    
-    Rexslt.new(recxslt.to_xslt, self.to_xml).to_s    
-    
+
+    Rexslt.new(recxslt.to_xslt, self.to_xml).to_s
+
   end
 
   def to_s(header: true)
@@ -312,9 +312,9 @@ class Polyrex
         puts 'line: ' + line.inspect if @debug
 
         recordsx = item.element('records').elements.to_a
-        
+
         if recordsx.length > 0 then
-          line = line + "\n" + build(recordsx, indent + 1).join("\n") 
+          line = line + "\n" + build(recordsx, indent + 1).join("\n")
         end
         ('  ' * indent) + line
       end
@@ -334,9 +334,9 @@ class Polyrex
       declaration = @raw_header
     else
 
-      smry_fields = %i(schema)              
+      smry_fields = %i(schema)
       if self.delimiter.length > 0 then
-        smry_fields << :delimiter 
+        smry_fields << :delimiter
       else
         smry_fields << :format_mask
       end
@@ -350,22 +350,22 @@ class Polyrex
     docheader = declaration + "\n" + sumry
     out = build(self.records).join("\n")
     header ? docheader + "\n" + out : out
-    
+
   end
-  
+
   def to_tree()
-    
+
     s = @schema.gsub(/(?<=\[)[^\]]+/) do |x|
       x.split(/\s*,\s*/).map {|field| '@' + field + ':' + field}.join(', ')
     end
 
-    xslt_schema = s.gsub(/\w+(?=\[)/,'item').sub(/^\w+/,'tree')                    
-    recxslt = RecordxXSLT.new(schema: @schema, xslt_schema: xslt_schema)    
-    Rexslt.new(recxslt.to_xslt, self.to_xml).to_s        
-    
-  end  
+    xslt_schema = s.gsub(/\w+(?=\[)/,'item').sub(/^\w+/,'tree')
+    recxslt = RecordxXSLT.new(schema: @schema, xslt_schema: xslt_schema)
+    Rexslt.new(recxslt.to_xslt, self.to_xml).to_s
 
-  def to_xslt()    
+  end
+
+  def to_xslt()
     @polyrex_xslt.schema = @schema
     @polyrex_xslt.to_xslt
   end
@@ -380,26 +380,26 @@ class Polyrex
   end
 
   def xslt=(value)
-    
+
     @summary.xslt = value
 
-  end    
-  
+  end
+
   def xslt_schema=(s)
     @polyrex_xslt.xslt_schema = s
     self
   end
-  
+
   protected
-  
+
   def doc()
     @doc
   end
 
   private
-  
+
   def make_dynarex(root)
-    
+
     root.delete('summary/recordx_type')
     root.delete('summary/format_mask')
     root.xpath('records/*/summary/format_mask').each(&:delete)
@@ -433,8 +433,8 @@ xsl_buffer = '
 
     buffer = Rexslt.new(xsl_buffer, root.xml).to_s
     Dynarex.new buffer
-    
-  end    
+
+  end
 
   def refresh_records(records, fields, level)
 
@@ -469,10 +469,10 @@ xsl_buffer = '
                                                           flatten.map(&:to_sym)
       summary = field_names.map {|x| "<%s/>" % x}.join
     end
-    
+
     summary << "<recordx_type>polyrex</recordx_type><schema>#{schema}</schema>"
     #----
-    
+
     @schema = schema
     @id_counter = '0'
 
@@ -481,12 +481,12 @@ xsl_buffer = '
                                     [root_name, (summary || '') , root_name])
 
   end
-  
+
   def recordx_map(node)
-    
+
     # get the summary
     fields = node.xpath('summary/*').map do |x|
-      next if %w(schema format_mask recordx_type).include? x.name 
+      next if %w(schema format_mask recordx_type).include? x.name
       r = x.text.to_s.gsub(/^[\n\s]+/,'').length > 0 ? x.text.to_s : \
                                                           x.cdatas.join.strip
       r
@@ -494,28 +494,28 @@ xsl_buffer = '
 
     # get the records
     a = node.xpath('records/*').map {|x| recordx_map x}
-    
+
     [fields.compact, a]
-  end  
-  
+  end
+
   def string_parse(buffer, options={})
 
     @raw_header = buffer.slice!(/<\?polyrex[^>]+>/)
-    
+
     if @raw_header then
       header = @raw_header[/<?polyrex (.*)?>/,1]
 
       r1 = /([\w\[\]\-]+\s*\=\s*'[^']*)'/
       r2 = /([\w\[\]\-]+\s*\=\s*"[^"]*)"/
 
-      a = header.scan(/#{r1}|#{r2}/).map(&:compact).flatten            
+      a = header.scan(/#{r1}|#{r2}/).map(&:compact).flatten
 
-      
+
       a.each do |x|
-        
+
         attr, val = x.split(/\s*=\s*["']/,2)
 
-        i = attr[/format_masks?\[(\d+)/,1]        
+        i = attr[/format_masks?\[(\d+)/,1]
 
         if i then
 
@@ -527,16 +527,16 @@ xsl_buffer = '
           end
         end
       end
-      
+
       options.each do |k,v|
-        
+
         if options[k] then
           a.delete a.assoc(k)
           self.method(((k.to_s) + '=').to_sym).call(options[k])
         end
-        
+
       end
-            
+
     end
 
     raw_lines = buffer.lstrip.lines.map(&:chomp)
@@ -546,9 +546,9 @@ xsl_buffer = '
     if raw_summary then
       a_summary = raw_summary.split(',').map(&:strip)
 
-      while raw_lines.first[/#{a_summary.join('|')}:\s+\w+/] do      
+      while raw_lines.first[/#{a_summary.join('|')}:\s+\w+/] do
 
-        label, val = raw_lines.shift.match(/(\w+):\s+([^$]+)$/).captures              
+        label, val = raw_lines.shift.match(/(\w+):\s+([^$]+)$/).captures
         @summary.send((label + '=').to_sym, val)
       end
 
@@ -565,50 +565,50 @@ xsl_buffer = '
     puts 'lines: ' + lines.inspect if @debug
     @parent_node.root.add format_line!( lines)
 
-  end  
-  
+  end
+
   def unescape(s)
     r = s.gsub('&lt;', '<').gsub('&gt;','>')
   end
-  
+
   def load_handlers(schema)
 
-    objects = PolyrexObjects.new(schema, debug: @debug)    
+    objects = PolyrexObjects.new(schema, debug: @debug)
     h = objects.to_h
     puts 'h:  ' + h.inspect if @debug
     @objects = h.inject({}){|r,x| r.merge x[0].downcase => x[-1]}
 
     @objects_a = objects.to_a
     attach_create_handlers(@objects.keys)
-    #attach_edit_handlers(@objects)    
+    #attach_edit_handlers(@objects)
 
   end
-  
+
   def format_line!(a, i=0)
 
     records = Rexle::Element.new('records')
-    
+
     # add code here for rowx
     @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/)\
                                             .flatten.map(&:to_sym)
 
     rowx_fields = a.map{|x| x.first[/^\w+(?=:)/].to_s.to_sym}.uniq
-    
+
     records = if (@field_names & rowx_fields).length >= 2 then
       # rowx implementation still to-do
       #vertical_fiedlparse(records, a, i)
     else
       horizontal_fieldparse(records, a, i)
     end
-    
+
   end
-    
-  
+
+
   # -- end of full text edit methods
-    
+
   def horizontal_fieldparse(records, a, i)
 
-    a.each do |x|          
+    a.each do |x|
 
       unless @recordx[i] then
         @recordx[i] = @recordx[-1].clone
@@ -620,28 +620,28 @@ xsl_buffer = '
 
 
       line = raw_line
-      
+
       if line[/\w+\s*---/] then
 
         node_name = line.sub(/\s*---/,'')
         ynode = Rexle::Element.new(node_name).add_text("---\n" + x.join("\n"))
-        
+
         summary.add ynode
         next
       end
-      
+
       puts '@schema: ' + @schema.inspect if @debug
       schema_a = @schema.split('/')[1..-1]
-      
+
       if @debug then
         puts 'schema_a: ' + schema_a.inspect
         puts 'i: ' + i.inspect
       end
-      
+
       unless @format_masks[i][/^\(.*\)$/] then
 
         @field_names, field_values = RXRawLineParser.new(format_masks[i])\
-                                                            .parse(line)  
+                                                            .parse(line)
 
         @field_names = schema_a[i] ? \
             schema_a[i][/\[([^\]]+)/,1].split(/\s*,\s*/).map(&:to_sym) : \
@@ -656,12 +656,12 @@ xsl_buffer = '
 
         pattern = patterns.detect {|x| line.match(/#{x}/)}
         i = patterns.index(pattern)
-        
+
         @field_names =  format_masks[i].to_s.scan(/\[!(\w+)\]/)\
                                               .flatten.map(&:to_sym)
 
-        field_values = line.match(/#{pattern}/).captures        
-        
+        field_values = line.match(/#{pattern}/).captures
+
       end
 
       @id_counter.succ!
@@ -671,9 +671,9 @@ xsl_buffer = '
       record.add_attribute(id: @id_counter.clone)
       summary = Rexle::Element.new('summary')
 
-      @field_names.zip(field_values).each do |name, value|  
+      @field_names.zip(field_values).each do |name, value|
         field =  Rexle::Element.new(name.to_s)
-        field.text = value        
+        field.text = value
         summary.add field
       end
 
@@ -685,42 +685,42 @@ xsl_buffer = '
       summary.add Rexle::Element.new('format_mask').add_text(format_mask)
       summary.add Rexle::Element.new('schema').add_text(schema)
       summary.add Rexle::Element.new('recordx_type').add_text('polyrex')
-      
+
       record.add summary
       child_records = format_line!(x, i+1)
 
       record.add child_records
       records.add record
     end
-    
+
     records
   end
 
   def attach_create_handlers(names)
     methodx = names.map do |name|
 %Q(
-  def create_#{name.downcase}(params, &blk) 
+  def create_#{name.downcase}(params, &blk)
     self.create.#{name.downcase}(params, &blk)
   end
 )
     end
 
     self.instance_eval(methodx.join("\n"))
-    
+
   end
-  
+
   def attach_edit_handlers(objects)
     objects.keys.each do |name|
     self.instance_eval(
 %Q(
-  def #{name.downcase}()     
+  def #{name.downcase}()
     @objects['#{name}'].new(@parent_node, id: @id)
   end
 ))
     end
-    
+
   end
-  
+
   def openx(s)
 
     if s[/</] # xml
@@ -728,7 +728,7 @@ xsl_buffer = '
     elsif s[/\[/] then  # schema
       buffer = polyrex_new s
     elsif s[/^https?:\/\//] then  # url
-      buffer = open(s, 'UserAgent' => 'Polyrex-Reader').read
+      buffer = URI.open(s, 'UserAgent' => 'Polyrex-Reader').read
     else # local file
       buffer = File.read s
       @local_filepath = s
@@ -738,9 +738,9 @@ xsl_buffer = '
     @doc = Rexle.new buffer
 
     schema = @doc.root.text('summary/schema').to_s
-    
+
     if schema.nil? then
-      schema = PolyrexSchema.new.parse(buffer).to_schema 
+      schema = PolyrexSchema.new.parse(buffer).to_schema
       e = @doc.root.element('summary')
       e.add Rexle::Element.new('schema').add_text(schema)
     end
@@ -763,7 +763,7 @@ xsl_buffer = '
     @parent_node = @doc.root.element('records')
 
   end
-      
+
   def regexify_fmask(f)
 
     a = f.split(/(?=\[!\w+\])/).map do |x|
@@ -780,45 +780,45 @@ xsl_buffer = '
       end
     end
 
-    a.join            
+    a.join
   end
-  
+
   def tail_map(a)
     [a] + (a.length > 1 ? tail_map(a[0..-2]) : [])
   end
-  
+
 
   def load_find_by(schema)
 
     a = PolyrexObjectMethods.new(schema).to_a
 
-    methodx = a.map do |class_name, methods| 
-      
+    methodx = a.map do |class_name, methods|
+
       class_name.downcase!
-      
-      methods.map do |method_name| 
-        
+
+      methods.map do |method_name|
+
         xpath = %Q(@doc.root.element("//%s[summary/%s='\#\{val\}']")) % \
                                                       [class_name, method_name]
         xpath2 = %Q(@doc.root.xpath("//%s[summary/%s='\#\{val\}']")) % \
                                                       [class_name, method_name]
-        
-        "def find_by_#{class_name}_#{method_name}(val) 
-        
+
+        "def find_by_#{class_name}_#{method_name}(val)
+
           node = #{xpath}
-          
+
           if node then
             Kernel.const_get(node.name.capitalize).new node, id: @id
           else
             nil
           end
-          
+
         end
 
-        def find_all_by_#{class_name}_#{method_name}(val) 
-        
+        def find_all_by_#{class_name}_#{method_name}(val)
+
           nodes = #{xpath2}
-          
+
           if nodes then
             nodes.map do |node|
               Kernel.const_get(node.name.capitalize).new node, id: @id
@@ -826,35 +826,35 @@ xsl_buffer = '
           else
             nil
           end
-          
-        end        
+
+        end
         "
-      end 
+      end
     end
 
     self.instance_eval methodx.join("\n")
   end
 
 
-  # refreshes the XML document with any new modification from 
+  # refreshes the XML document with any new modification from
   #                                                the summary object
   def refresh_summary()
-    
-    summary = @doc.root.element('summary')    
+
+    summary = @doc.root.element('summary')
     @summary.to_h.each do |k,v|
-      
+
       puts "k: %s; v: %s" % [k, v] if @debug
       e = summary.element(k.to_s)
       if e then
         e.text = v
       else
-        summary.add Rexle::Element.new(k.to_s).add_text(v)        
+        summary.add Rexle::Element.new(k.to_s).add_text(v)
       end
     end
-    
+
     if @summary.xslt then
-      @doc.instructions = [['xml-stylesheet', 
-        "title='XSL_formatting' type='text/xsl' href='#{@summary.xslt}'"]] 
+      @doc.instructions = [['xml-stylesheet',
+        "title='XSL_formatting' type='text/xsl' href='#{@summary.xslt}'"]]
     end
   end
 
