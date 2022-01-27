@@ -39,11 +39,12 @@ class PolyrexException < Exception
 end
 
 class Polyrex
+  include RXFHelperModule
+
   attr_accessor :summary_fields, :xslt_schema, :id_counter,
                 :schema, :type, :delimiter, :xslt, :format_masks
 
   def initialize(location=nil, schema: nil, id_counter: '1', debug: false)
-
 
     @id_counter, @debug = id_counter, debug
     @format_masks = []
