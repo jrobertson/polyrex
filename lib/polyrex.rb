@@ -122,7 +122,7 @@ class Polyrex
   end
 
   def export(filepath)
-    File.write filepath, to_s()
+    FileX.write filepath, to_s()
   end
 
   def record()
@@ -144,7 +144,7 @@ class Polyrex
     xml = @doc.to_s(options)
 
     buffer = block_given? ? yield(xml) : xml
-    File.open(filepath,'w'){|f| f.write buffer}
+    FileX.write filepath, buffer
   end
 
   # -- start of crud methods --
@@ -730,7 +730,7 @@ xsl_buffer = '
     elsif s[/^https?:\/\//] then  # url
       buffer = URI.open(s, 'UserAgent' => 'Polyrex-Reader').read
     else # local file
-      buffer = File.read s
+      buffer = FileX.read s
       @local_filepath = s
     end
 
