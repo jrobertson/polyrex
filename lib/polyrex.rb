@@ -39,7 +39,7 @@ class PolyrexException < Exception
 end
 
 class Polyrex
-  include RXFHelperModule
+  include RXFReadWriteModule
 
   attr_accessor :summary_fields, :xslt_schema, :id_counter,
                 :schema, :type, :delimiter, :xslt, :format_masks
@@ -54,13 +54,13 @@ class Polyrex
 
     if location then
 
-      s, type = RXFHelper.read(location)
+      s, type = RXFReader.read(location)
       return import(s) if s =~ /^\<\?polyrex\b/
 
       @local_filepath = location if type == :file or type == :dfs
 
       openx(s)
-
+      puts 'before schema' if @debug
       if schema then
 
         fields = @schema[/\/.*/].scan(/\[([^\]]+)/).map \
@@ -173,7 +173,7 @@ class Polyrex
 
   def parse(x=nil, options={})
 
-    buffer, type = RXFHelper.read(x)
+    buffer, type = RXFReader.read(x)
 
     if type == :unknown and buffer.lines.length <= 1 then
       raise PolyrexException, 'File not found: ' + x.inspect
@@ -723,6 +723,8 @@ xsl_buffer = '
   end
 
   def openx(s)
+
+    puts 'inside openx' if @debug
 
     if s[/</] # xml
       buffer = s
