@@ -44,11 +44,11 @@ class Polyrex
   attr_accessor :summary_fields, :xslt_schema, :id_counter,
                 :schema, :type, :delimiter, :xslt, :format_masks
 
-  def initialize(location=nil, schema: nil, id_counter: '1', debug: false)
+  def initialize(location=nil, schema: nil, id_counter: '1',
+                 delimiter: '', debug: false)
 
     @id_counter, @debug = id_counter, debug
     @format_masks = []
-    @delimiter = ''
 
     self.method(:schema=).call(schema) if schema
 
@@ -77,6 +77,8 @@ class Polyrex
 
     @polyrex_xslt = RecordxXSLT.new
     #@parent_node = @doc.root if @doc
+
+    set_delimiter(delimiter)
   end
 
   def add(pxobj)
@@ -109,6 +111,8 @@ class Polyrex
       format_mask.to_s.gsub(/\s/, separator)
     end
   end
+
+  alias set_delimiter delimiter=
 
   def each_recursive(parent=self, level=0, &blk)
 
